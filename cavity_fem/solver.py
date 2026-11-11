@@ -71,7 +71,15 @@ def solve(path, config, output_dir=None, progress=print, domain_override=None, g
         domain, geometry = build_antennas(domain, geometry, cfg.antennas, bulk_epsr=cfg.bulk_epsr, bulk_tand=cfg.bulk_tand)
     from .boundaries import assign_external_boundaries
     geometry = assign_external_boundaries(geometry, cfg)
-    if cfg.analysis_mode == "all_openings_qc" or cfg.all_artificial_caps or cfg.antennas or cfg.spectrum_enabled or cfg.mode_search == "lowest" or geometry.get("antenna_ports"):
+    if cfg.all_artificial_caps:
+        automatic = geometry['external_boundary_selection']['automatic_source_face_ids']
+        progress('人工キャップから自動指定した外部開口: %d面（元面ID: %s）' %
+                 (len(automatic), ', '.join(str(face) for face in automatic) or 'なし'))
+    if cfg.analysis_mode == 'all_openings_qc':
+        progress('全開口Qc: 空洞の蓄積エネルギーと各開口の流出電力を計算します（S11は実行しません）')
+    if (cfg.analysis_mode == "all_openings_qc" or cfg.all_artificial_caps or cfg.antennas
+            or cfg.spectrum_enabled or cfg.mode_search == "lowest"
+            or geometry.get("antenna_ports") or geometry.get("external_ports")):
         from .spectrum import solve_advanced
         return solve_advanced(domain, geometry, cfg, output_dir, progress, time.perf_counter()-start)
     nfaces = len(domain.faces)

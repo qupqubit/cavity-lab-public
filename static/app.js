@@ -1,8 +1,9 @@
 "use strict";
 (() => {
   const $ = id => document.getElementById(id);
-  const state = { geometry: null, sourceGeometry: null, antennas: [], antennaPreview: false, result: null, jobId: null, active: false, loading: false, selectedMode: 0, selectedFace: null, poll: null, generation: 0, exampleAvailable: true, startedAt: null, executionLocation: "unknown", fieldCache: new Map(), fieldData: null, fieldGeneration: 0, ports: [], portsJsonDirty: false, estimate: null, estimateDetailParts: [], estimateTimer: null, estimateGeneration: 0, jobEstimate: null, transient: null, historyEstimates: [], restoredAllCaps: false, transientSamples: new Map(), memoryPlan: null, jobMemory: null, memoryLimitState: "pending", memoryConfig: null };
+  const state = { geometry: null, sourceGeometry: null, antennas: [], antennaPreview: false, result: null, jobId: null, active: false, loading: false, selectedMode: 0, selectedFace: null, poll: null, generation: 0, exampleAvailable: true, startedAt: null, executionLocation: "unknown", fieldCache: new Map(), fieldData: null, fieldGeneration: 0, ports: [], portsJsonDirty: false, estimate: null, estimateDetailParts: [], estimateTimer: null, estimateGeneration: 0, jobEstimate: null, transient: null, historyEstimates: [], transientSamples: new Map(), memoryPlan: null, jobMemory: null, memoryLimitState: "pending", memoryConfig: null };
   Object.assign(state,{memoryGeneration:0,memoryTimer:null,memoryRefreshing:false,memoryError:"",memoryFetchedAt:null,infoGeneration:0,jobStatus:null,jobMemoryAt:null,jobMemoryConfig:null});
+  Object.assign(state,{autoOpenings:false,excludedCapFaces:[],autoCandidateHints:[]});
   const statuses = { queued: "順番待ち", running: "計算中", completed: "計算完了", failed: "計算エラー", cancelled: "停止済み", ready: "形状読込済み", loading: "形状を確認中" };
   const mappings = { "geometry-mode": "geometry_mode", "solid-index": "solid_index", "maxh-mm": "maxh_mm", "order": "order", "n-modes": "n_modes", "target-ghz": "target_ghz", "threads": "threads", "rs-nohm": "rs_nohm", "bulk-epsr": "bulk_epsr", "bulk-tand": "bulk_tand", "oxide-thickness-nm": "oxide_thickness_nm", "oxide-epsr": "oxide_epsr", "oxide-tand": "oxide_tand", "loss-model": "loss_model", "temperature-k": "temperature_k", "photon-number": "photon_number", "tls-nc": "tls_nc", "tls-beta": "tls_beta", "q-res": "q_res" };
   Object.assign(mappings, {"analysis-mode":"analysis_mode","mode-search":"mode_search","spectrum-start-ghz":"spectrum_start_ghz","spectrum-stop-ghz":"spectrum_stop_ghz","spectrum-points":"spectrum_points","field-resolution":"field_resolution"});
@@ -32,6 +33,7 @@
     $("add-antenna-button").disabled=state.selectedFace===null || busy || state.antennaPreview || state.antennas.length>=8;
     $("preview-antennas").disabled=busy || !state.geometry || !state.antennas.length;
     $("restore-source").hidden=!state.antennaPreview;
+    renderAutoOpenings();
   }
   function updateExecutionLocation(info=null){
     const loopback=["localhost","127.0.0.1","[::1]","::1"].includes(window.location.hostname);
@@ -168,8 +170,9 @@
     const parts=[];if(e){if(num(e.lower_s)&&num(e.upper_s)){const elapsed=(Date.now()-(e.receivedAt||Date.now()))/1000;parts.push("残りの目安 "+duration(Math.max(0,e.lower_s-elapsed))+"〜"+duration(Math.max(0,e.upper_s-elapsed)));}if(num(e.total_units)&&Number(e.total_units)>0)parts.push("処理単位 "+fmt(e.completed_units,0)+" / "+fmt(e.total_units,0));if(Number(e.queued_wait_s)>0)parts.push("順番待ち約 "+duration(e.queued_wait_s));parts.push(estimateBasis(e));}
     setText("work-progress-detail",parts.join(" · ")+" · 実際の完了時刻を保証するものではありません。");
   }
-  function portQLabel(value,power){
+  function portQLabel(value,power,status){
     if(num(value))return qfmt(value);
+    if(status==="below_power_threshold")return "流出微小・Qc未確定";
     if(num(power))return Number(power)<=0?"∞（流出 0）":"算出範囲外";
     return "未設定";
   }
@@ -183,7 +186,7 @@
     const facts=[["空洞 U",mode.cavity_energy_j_normalized,"J"],["全領域 U",mode.total_energy_j_normalized,"J"],["全流出電力",mode.outgoing_power_w_normalized,"W"],[cavity?"合成 Qc（空洞基準）":"合成 Qc（全領域基準）",cavity?mode.q_external_cavity:mode.q_external_total_energy,""]];
     for(const [label,value,unit]of facts){const item=elem("div");item.append(elem("span",label),elem("strong",(unit?sci(value):qfmt(value))+(unit?" "+unit:"")));summary.append(item);}
     const table=elem("table",undefined,"data-table"),head=elem("thead"),tr=elem("tr"),body=elem("tbody");for(const label of ["境界 / 原形状の面","流出電力 W",cavity?"空洞 Qc":"外部 Qc"])tr.append(elem("th",label));head.append(tr);
-    for(const port of ports){const row=elem("tr"),name=elem("td",port.name),faces=port.source_faces||port.faces||[];const kind=({radiation:"放射近似",surface_impedance:"表面波 Z",local_impedance:"表面波 Z",coax_tem:"同軸 TEM"})[port.kind]||port.kind||"";name.append(elem("small",kind+(faces.length?" · 面 "+faces.join(", "):""),"port-result-detail"));row.append(name,elem("td",sci(port.power_w_normalized)),elem("td",portQLabel(cavity?(port.qc_cavity??port.qc):(port.qc_total_energy??port.qc),port.power_w_normalized)));body.append(row);}
+    for(const port of ports){const row=elem("tr"),name=elem("td",port.name),faces=port.source_faces||port.faces||[];const kind=({radiation:"放射近似",surface_impedance:"表面波 Z",local_impedance:"表面波 Z",coax_tem:"同軸 TEM"})[port.kind]||port.kind||"";name.append(elem("small",kind+(port.selection==="artificial_cap_candidate"?" · 自動":"")+(faces.length?" · 面 "+faces.join(", "):""),"port-result-detail"));row.append(name,elem("td",sci(port.power_w_normalized)),elem("td",portQLabel(cavity?(port.qc_cavity??port.qc):(port.qc_total_energy??port.qc),port.power_w_normalized,port.qc_status)));body.append(row);}
     table.append(head,body);const scroll=elem("div",undefined,"table-scroll");scroll.append(table);root.append(scroll);
     root.append(elem("p","表示した U と P は固有モードの任意振幅に対応します。Qc は振幅に依存しません。","help-note"));
   }
@@ -244,7 +247,7 @@
       let geo;
       if(file) { const form=new FormData(); form.append("file",file); form.append("geometry_mode",$("geometry-mode").value); geo=await api("/api/inspect",{method:"POST",body:form}); }
       else geo=await api("/api/example",{method:"POST"});
-      state.ports=[];state.restoredAllCaps=false;$("cap-review").hidden=true;renderPorts();$("sweep-enabled").checked=false;state.antennas=[];state.antennaPreview=false;state.sourceGeometry=geo;renderAntennas();updatePortCount();
+      state.ports=[];$("cap-review").hidden=true;$("sweep-enabled").checked=false;state.antennas=[];state.antennaPreview=false;state.sourceGeometry=geo;configureNewOpenings(geo);renderAntennas();
       applyGeometry(geo); setStatus("ready");
     } catch(e) { notice(e.message,true); setStatus("failed"); }
     finally { state.loading=false;endTransient(); syncButtons(); $("step-file").value="";scheduleEstimate(); }
@@ -256,7 +259,7 @@
     state.loading=true;startTransient("解析領域の確認",30,180);syncButtons();setStatus("loading");
     try {
       const geo=await api("/api/geometries/"+encodeURIComponent(original.id)+"/inspect",jsonPost({geometry_mode:$("geometry-mode").value,solid_index:changeMode?0:Number($("solid-index").value)}));
-      state.sourceGeometry=geo;state.antennas=[];state.antennaPreview=false;$("sweep-enabled").checked=false;renderAntennas();applyGeometry(geo);state.ports=[];state.restoredAllCaps=false;$("cap-review").hidden=true;renderPorts();updatePortCount();setStatus("ready");
+      state.sourceGeometry=geo;state.antennas=[];state.ports=[];state.antennaPreview=false;$("sweep-enabled").checked=false;configureNewOpenings(geo);renderAntennas();applyGeometry(geo);$("cap-review").hidden=true;setStatus("ready");
       notice(geometryWarnings(geo).concat(["領域の変更に伴い、ポート面の設定をクリアしました。"]).join(" "));
     } catch(e) { $("geometry-mode").value=original.mode || "vacuum_solid"; $("solid-index").value=String(original.selected??0);updateGeometryHelp();notice(e.message,true);setStatus("failed"); }
     finally {state.loading=false;endTransient();syncButtons();scheduleEstimate();}
@@ -268,6 +271,71 @@
     setText("selected-face",state.selectedFace===null?"—":state.selectedFace+(f?.artificial_cap?" · 人工キャップ":""));
     $("face-select").value=state.selectedFace===null?"":String(state.selectedFace);
     syncButtons(); viewer.draw();
+  }
+  function openingCandidates(){
+    const source=state.sourceGeometry||(!state.antennaPreview?state.geometry:null);
+    if(source&&Array.isArray(source.faces))return source.mode==="metal_void"?source.faces.filter(f=>f.artificial_cap):[];
+    return $("geometry-mode").value==="metal_void"?state.autoCandidateHints:[];
+  }
+  function manualPort(port){const {internal_auto,...manual}=port;return {...manual,faces:[...port.faces]};}
+  function syncAutomaticPorts(){
+    const manual=state.ports.filter(port=>!port.internal_auto);
+    state.ports=manual;
+    if(!state.autoOpenings)return;
+    const assigned=new Set(manual.flatMap(port=>port.faces)),names=new Set([...manual,...state.antennas].map(item=>item.name));
+    for(const face of openingCandidates()){
+      const id=face.id??face.index;
+      if(state.excludedCapFaces.includes(id)||assigned.has(id)||state.antennas.some(ant=>ant.face===id))continue;
+      let name="opening_face_"+id;while(names.has(name))name+="_";names.add(name);
+      state.ports.push({name,faces:[id],kind:"radiation",radiation_epsr:1,impedance_ohm:376.730313668,internal_auto:true});
+    }
+  }
+  function configureNewOpenings(geometry){
+    state.excludedCapFaces=[];state.autoCandidateHints=[];state.autoOpenings=geometry.mode==="metal_void";
+    $("analysis-mode").value=state.autoOpenings&&openingCandidates().length?"all_openings_qc":"resonance";
+    if(state.autoOpenings)$("spectrum-enabled").checked=false;
+    updateAnalysisMode();renderPorts();
+  }
+  function setAutomaticOpenings(enabled){
+    const mode=state.sourceGeometry?.mode||state.geometry?.mode||$("geometry-mode").value;
+    state.autoOpenings=enabled&&mode==="metal_void";
+    if(state.autoOpenings){$("analysis-mode").value=openingCandidates().length?"all_openings_qc":"resonance";$("spectrum-enabled").checked=false;}
+    updateAnalysisMode();renderPorts();syncButtons();viewer.draw();
+  }
+  function excludeOpening(face,excluded=true){
+    state.excludedCapFaces=state.excludedCapFaces.filter(id=>id!==face);
+    if(excluded)state.excludedCapFaces.push(face);
+    state.excludedCapFaces.sort((a,b)=>a-b);syncAutomaticPorts();
+  }
+  function editOpening(port,updates){
+    if(port.internal_auto){
+      for(const face of port.faces)if(!state.excludedCapFaces.includes(face))state.excludedCapFaces.push(face);
+      delete port.internal_auto;
+      if(!state.ports.includes(port))state.ports.push(port);
+    }
+    Object.assign(port,updates);syncAutomaticPorts();portsChanged();
+  }
+  function removeOpening(port){
+    if(port.internal_auto)for(const face of port.faces)excludeOpening(face);
+    else state.ports=state.ports.filter(item=>item!==port);
+    renderPorts();portsChanged();viewer.draw();
+  }
+  function showOpeningFace(face){if(state.antennaPreview)restoreSourceGeometry();selectFace(face);}
+  function renderAutoOpenings(){
+    const mode=state.sourceGeometry?.mode||state.geometry?.mode||$("geometry-mode").value;
+    $("automatic-openings").hidden=mode!=="metal_void";
+    $("auto-openings").checked=state.autoOpenings;$("auto-openings").disabled=state.loading||state.active;
+    const candidates=openingCandidates(),count=state.ports.filter(port=>port.internal_auto).length;
+    $("auto-port-legend").hidden=!count;
+    setText("auto-openings-summary",!candidates.length?"抽出した開口候補は 0 面です。必要な開口を CAD で選び、外部境界に追加してください。":candidates.length+" 面を検出 · 自動ポート "+count+" 個"+(state.autoOpenings?"":" · 自動設定はオフ"));
+    const list=$("auto-openings-list");list.replaceChildren();
+    for(const face of candidates){
+      const id=face.id??face.index,manual=state.ports.some(port=>!port.internal_auto&&port.faces.includes(id)),antenna=state.antennas.some(ant=>ant.face===id),excluded=state.excludedCapFaces.includes(id);
+      const row=elem("div",undefined,"auto-opening-row"),show=elem("button","面 "+id,"text-button");show.type="button";show.addEventListener("click",()=>showOpeningFace(id));
+      row.append(show,elem("span",antenna?"アンテナ":manual?"手動設定":excluded?"除外中":state.autoOpenings?"自動設定":"未設定"));
+      if(!manual&&!antenna){const action=elem("button",excluded?"戻す":"除外","text-button");action.type="button";action.disabled=!state.autoOpenings||state.loading||state.active;action.addEventListener("click",()=>{excludeOpening(id,!excluded);renderPorts();viewer.draw();});row.append(action);}
+      list.append(row);
+    }
   }
   function validatePorts(ports) {
     if(!Array.isArray(ports))throw new Error("外部境界の定義は配列 [...] で指定してください。");
@@ -285,25 +353,29 @@
       return {...port,kind,impedance_ohm:Number(z),radiation_epsr:Number(eps),faces:[...port.faces]};
     });
   }
-  function readPorts(){return validatePorts(state.ports);}
-  function syncPortsJson(){if(!state.portsJsonDirty)$("ports-json").value=JSON.stringify(state.ports,null,2);}
+  function readPorts(){syncAutomaticPorts();return validatePorts(state.ports.filter(port=>!port.internal_auto).map(manualPort));}
+  function syncPortsJson(){if(!state.portsJsonDirty)$("ports-json").value=JSON.stringify(state.ports.filter(port=>!port.internal_auto).map(manualPort),null,2);}
   function updatePortCount(){setText("port-count",(state.ports.length+state.antennas.length)+" PORTS");refreshAntennaSelectors();scheduleEstimate();}
-  function portsChanged(){syncPortsJson();updatePortCount();syncButtons();}
+  function portsChanged(){syncPortsJson();updatePortCount();syncButtons();viewer.draw();}
   function renderPorts(){
+    syncAutomaticPorts();
     const list=$("port-list");list.replaceChildren();
     if(!state.ports.length)list.append(blank("外部境界は未設定です。指定しない面は導体壁として扱います。"));
     state.ports.forEach((port,index)=>{
       const card=elem("article",undefined,"antenna-card port-card"),head=elem("div",undefined,"antenna-card-heading");
-      head.append(elem("strong","OPENING "+String(index+1).padStart(2,"0")));
-      const remove=elem("button","×","text-button");remove.type="button";remove.setAttribute("aria-label",port.name+" を削除");remove.addEventListener("click",()=>{state.ports.splice(index,1);renderPorts();portsChanged();});head.append(remove);card.append(head);
-      const fields=elem("div",undefined,"field-grid"),nameLabel=elem("label","名前","field"),name=elem("input");name.type="text";name.value=port.name;name.required=true;name.addEventListener("input",()=>{port.name=name.value;portsChanged();});nameLabel.append(name);
-      const faceLabel=elem("label","原形状の面 ID","field"),face=elem("input");face.type="text";face.value=port.faces.join(", ");face.required=true;face.addEventListener("input",()=>{port.faces=face.value.split(/[,、\s]+/).filter(Boolean).map(Number);portsChanged();});faceLabel.append(face);fields.append(nameLabel,faceLabel);card.append(fields);
+      const origin=elem("span",port.internal_auto?"自動設定":"手動設定","port-origin");
+      head.append(elem("strong","OPENING "+String(index+1).padStart(2,"0")),origin);
+      const edit=updates=>{editOpening(port,updates);origin.textContent="手動設定";remove.setAttribute("aria-label",port.name+" を削除");};
+      const remove=elem("button","×","text-button");remove.type="button";remove.setAttribute("aria-label",port.name+(port.internal_auto?" を自動設定から除外":" を削除"));remove.addEventListener("click",()=>removeOpening(port));head.append(remove);card.append(head);
+      const show=elem("button","原形状の面 "+port.faces.join(", ")+" を表示","text-button");show.type="button";show.addEventListener("click",()=>showOpeningFace(port.faces[0]));card.append(show);
+      const fields=elem("div",undefined,"field-grid"),nameLabel=elem("label","名前","field"),name=elem("input");name.type="text";name.value=port.name;name.required=true;name.addEventListener("input",()=>edit({name:name.value}));name.addEventListener("change",renderPorts);nameLabel.append(name);
+      const faceLabel=elem("label","原形状の面 ID","field"),face=elem("input");face.type="text";face.value=port.faces.join(", ");face.required=true;face.addEventListener("input",()=>edit({faces:face.value.split(/[,、\s]+/).filter(Boolean).map(Number)}));face.addEventListener("change",renderPorts);faceLabel.append(face);fields.append(nameLabel,faceLabel);card.append(fields);
       const kindLabel=elem("label","境界の種類","field"),kind=elem("select");kind.append(new Option("放射境界（平面波近似）","radiation"),new Option("表面波インピーダンスを指定","surface_impedance"));kind.value=port.kind||"surface_impedance";kindLabel.append(kind);card.append(kindLabel);
-      const epsLabel=elem("label","外部媒質の εr","field"),eps=elem("input");eps.type="number";eps.min="1";eps.step="any";eps.value=port.radiation_epsr??1;eps.required=true;eps.addEventListener("input",()=>{port.radiation_epsr=eps.value===""?null:Number(eps.value);portsChanged();});epsLabel.append(eps);
-      const zLabel=elem("label","表面波インピーダンス Ω","field"),z=elem("input");z.type="number";z.min="0.000001";z.step="any";z.value=port.impedance_ohm??376.730313668;z.required=true;z.addEventListener("input",()=>{port.impedance_ohm=z.value===""?null:Number(z.value);portsChanged();});zLabel.append(z);
-      const updateKind=()=>{const radiation=kind.value==="radiation";epsLabel.hidden=!radiation;eps.disabled=!radiation;zLabel.hidden=radiation;z.disabled=radiation;};kind.addEventListener("change",()=>{port.kind=kind.value;updateKind();portsChanged();});updateKind();card.append(epsLabel,zLabel);list.append(card);
+      const epsLabel=elem("label","外部媒質の εr","field"),eps=elem("input");eps.type="number";eps.min="1";eps.step="any";eps.value=port.radiation_epsr??1;eps.required=true;eps.addEventListener("input",()=>edit({radiation_epsr:eps.value===""?null:Number(eps.value)}));eps.addEventListener("change",renderPorts);epsLabel.append(eps);
+      const zLabel=elem("label","表面波インピーダンス Ω","field"),z=elem("input");z.type="number";z.min="0.000001";z.step="any";z.value=port.impedance_ohm??376.730313668;z.required=true;z.addEventListener("input",()=>edit({impedance_ohm:z.value===""?null:Number(z.value)}));z.addEventListener("change",renderPorts);zLabel.append(z);
+      const updateKind=()=>{const radiation=kind.value==="radiation";epsLabel.hidden=!radiation;eps.disabled=!radiation;zLabel.hidden=radiation;z.disabled=radiation;};kind.addEventListener("change",()=>{edit({kind:kind.value});renderPorts();});updateKind();card.append(epsLabel,zLabel);list.append(card);
     });
-    state.portsJsonDirty=false;syncPortsJson();setText("ports-json-state","カードと同期済み");updatePortCount();
+    state.portsJsonDirty=false;syncPortsJson();setText("ports-json-state","手動カードと同期済み");updatePortCount();renderAutoOpenings();
   }
   function addOpening(face){
     if(state.ports.some(p=>p.faces.includes(face))||state.antennas.some(a=>a.face===face))throw new Error("面 "+face+" は外部境界またはアンテナに指定済みです。");
@@ -321,7 +393,7 @@
       if(input.id==="rs-nohm" && $("loss-model").value!=="surface_rs") continue;
       if(!input.checkValidity()) {if(!silent){input.closest("details")?.setAttribute("open","");input.reportValidity();}throw new Error("入力条件を確認してください: "+input.closest("label").childNodes[0].textContent.trim());}
     }
-    const config={geometry_id:state.geometry?.id??null,all_artificial_caps:state.restoredAllCaps,ports:readPorts(),antennas:readAntennas(),spectrum_enabled:$("spectrum-enabled").checked,driven_port:$("driven-port").value||null};
+    const config={geometry_id:state.geometry?.id??null,all_artificial_caps:state.autoOpenings,excluded_artificial_cap_faces:[...state.excludedCapFaces].sort((a,b)=>a-b),ports:readPorts(),antennas:readAntennas(),spectrum_enabled:$("spectrum-enabled").checked,driven_port:$("driven-port").value||null};
     for(const [id,key] of Object.entries(mappings)) config[key]=["geometry-mode","loss-model","mode-search","analysis-mode"].includes(id)?$(id).value:$(id).value===""?null:Number($(id).value);
     if(config.analysis_mode==="all_openings_qc")config.spectrum_enabled=false;
     if(config.spectrum_enabled && config.spectrum_stop_ghz<=config.spectrum_start_ghz)throw new Error("周波数スキャンの終了値は開始値より大きくしてください。");
@@ -331,32 +403,25 @@
     return config;
   }
   function restoreCapPorts(resultGeometry,sourceGeometry=null){
-    if(!state.restoredAllCaps)return;
-    let candidates;
-    if(Array.isArray(resultGeometry?.external_ports)){
-      candidates=resultGeometry.external_ports.map(port=>{
-        const faces=port.source_faces?.length?port.source_faces:(port.faces||[]).map(id=>resultGeometry.faces?.find(f=>f.id===id)?.source_face).filter(id=>Number.isInteger(id)&&id>0);
-        return {name:port.name,faces:[...new Set(faces)],kind:port.kind||"radiation",impedance_ohm:port.impedance_ohm??376.730313668,radiation_epsr:port.radiation_epsr??1};
-      });
-      if(candidates.some(p=>!p.faces.length)&&!sourceGeometry)return;
-    }else if(sourceGeometry){
-      candidates=(sourceGeometry.faces||[]).filter(f=>f.artificial_cap).map(f=>({name:"opening_face_"+(f.id??f.index),faces:[f.id??f.index],kind:"radiation",impedance_ohm:376.730313668,radiation_epsr:1}));
-    }else return;
-    for(const port of candidates){
-      const faces=port.faces.filter(face=>!state.antennas.some(a=>a.face===face)&&!state.ports.some(p=>p.faces.includes(face)));
-      if(!faces.length)continue;
-      let name=port.name||"opening_face_"+faces[0],suffix=2;while([...state.ports,...state.antennas].some(p=>p.name===name))name=(port.name||"opening_face_"+faces[0])+"_"+suffix++;
-      state.ports.push({...port,name,faces});
+    if(sourceGeometry)state.sourceGeometry=sourceGeometry;
+    const ids=resultGeometry?.external_boundary_selection?.artificial_cap_candidates;
+    if(Array.isArray(ids))state.autoCandidateHints=ids.map(id=>({id,artificial_cap:true}));
+    else if(Array.isArray(resultGeometry?.external_ports)){
+      const faces=resultGeometry.external_ports.flatMap(port=>port.source_faces?.length?port.source_faces:(port.faces||[]).map(id=>resultGeometry.faces?.find(face=>face.id===id)?.source_face).filter(id=>Number.isInteger(id)&&id>0));
+      state.autoCandidateHints=[...new Set(faces)].map(id=>({id,artificial_cap:true}));
     }
-    state.restoredAllCaps=false;renderPorts();
+    renderPorts();
   }
   function restoreConfig(config,resultGeometry=null) {
     if(!config)return;
-    for(const [id,key] of Object.entries(mappings)) if(key in config && !["geometry-mode","solid-index"].includes(id)) $(id).value=config[key]??"";
-    state.restoredAllCaps=config.all_artificial_caps===true;
+    state.sourceGeometry=null;state.geometry=config.geometry_id?{id:config.geometry_id,mode:config.geometry_mode,selected:config.solid_index}:null;state.autoCandidateHints=[];
+    for(const [id,key] of Object.entries(mappings))if(key in config)$(id).value=config[key]??"";
+    state.autoOpenings=config.all_artificial_caps===true;
+    state.excludedCapFaces=[...(config.excluded_artificial_cap_faces||[])];
     $("analysis-mode").value=config.analysis_mode||"resonance";
-    state.ports=(config.ports||[]).map(p=>({...p,faces:[...p.faces]}));renderPorts();
-    state.antennas=(config.antennas||[]).map(a=>({...a}));state.antennaPreview=false;restoreCapPorts(resultGeometry);renderAntennas();
+    state.ports=(config.ports||[]).map(manualPort);
+    state.antennas=(config.antennas||[]).map(a=>({...a}));state.antennaPreview=false;
+    restoreCapPorts(resultGeometry);renderAntennas();
     $("spectrum-enabled").checked=config.spectrum_enabled===true;
     $("driven-port").value=config.driven_port||"";
     $("sweep-enabled").checked=!!config.antenna_sweep;
@@ -556,7 +621,14 @@
   }
   function antennaChanged() {
     if(state.antennaPreview)restoreSourceGeometry();
-    updatePortCount();syncButtons();
+    renderPorts();syncButtons();viewer.draw();
+  }
+  function addSelectedAntenna(){
+    if(state.selectedFace===null||state.antennaPreview)return;
+    if(state.ports.some(port=>!port.internal_auto&&port.faces.includes(state.selectedFace))||state.antennas.some(ant=>ant.face===state.selectedFace)){notice("選択面は手動の外部境界またはアンテナに指定済みです。",true);return;}
+    let index=state.antennas.length+1;while([...state.antennas,...state.ports].some(item=>item.name==="A"+index))index++;
+    state.antennas.push({name:"A"+index,face:state.selectedFace,length_mm:5,pin_radius_mm:.5,coax_outer_radius_mm:1.67,dielectric_epsr:2.1,feed_length_mm:3,center_mm:null,inward_axis:null});
+    antennaChanged();renderAntennas();
   }
   function renderAntennas() {
     const list=$("antenna-list");list.replaceChildren();
@@ -764,12 +836,14 @@
       }
       this.drawn.sort((a,b)=>a.depth-b.depth);
       const caps=new Set((state.geometry?.faces||[]).filter(f=>f.artificial_cap).map(f=>f.id));
+      const automaticSource=new Set(state.ports.filter(port=>port.internal_auto).flatMap(port=>port.faces));
+      const automaticFaces=new Set((state.geometry?.faces||[]).filter(face=>automaticSource.has(face.source_face??(!state.antennaPreview?face.id:null))).map(face=>face.id));
       for(const t of this.drawn) {
         const selected=state.selectedFace!==null && Number(t.id)===state.selectedFace;
         const cap=caps.has(t.id);
         ctx.beginPath();ctx.moveTo(t.a[0],t.a[1]);ctx.lineTo(t.b[0],t.b[1]);ctx.lineTo(t.c[0],t.c[1]);ctx.closePath();
         if(!this.wire) {
-          const base=selected?[85,213,186]:cap?[128,150,173]:[114,168,182];
+          const base=selected?[85,213,186]:automaticFaces.has(t.id)?[205,166,104]:cap?[128,150,173]:[114,168,182];
           ctx.fillStyle="rgb("+base.map(x=>Math.round(x*t.light)).join(",")+")";ctx.fill();
         }
         ctx.strokeStyle=selected?"rgba(157,255,220,.9)":this.wire?"rgba(126,190,201,.42)":"rgba(180,225,230,.14)";
@@ -807,11 +881,12 @@
   $("run-button").addEventListener("click",startJob);
   $("cancel-button").addEventListener("click",async()=>{if(!state.active)return;$("cancel-button").disabled=true;try{renderJob(await api("/api/jobs/"+encodeURIComponent(state.jobId)+"/cancel",{method:"POST"}));clearTimeout(state.poll);state.generation++;refreshJobs();if(!state.active)scheduleEstimate();}catch(e){notice(e.message,true);}finally{$("cancel-button").disabled=false;}});
   $("ports-json").addEventListener("input",()=>{state.portsJsonDirty=true;setText("ports-json-state","未適用 · 計算には上のカードを使用");});
-  $("apply-ports-json").addEventListener("click",()=>{try{state.ports=validatePorts(JSON.parse($("ports-json").value));renderPorts();notice("JSON の境界設定をカードに反映しました。");}catch(e){notice("JSON を適用できません: "+e.message,true);}});
+  $("apply-ports-json").addEventListener("click",()=>{try{state.ports=validatePorts(JSON.parse($("ports-json").value)).map(manualPort);renderPorts();notice("JSON の手動境界設定をカードに反映しました。自動ポートは別に生成されます。");}catch(e){notice("JSON を適用できません: "+e.message,true);}});
+  $("auto-openings").addEventListener("change",()=>setAutomaticOpenings($("auto-openings").checked));
   $("review-caps-button").addEventListener("click",reviewCaps);
   $("cancel-caps-button").addEventListener("click",()=>{$("cap-review").hidden=true;});
   $("apply-caps-button").addEventListener("click",()=>{try{const selected=[...$("cap-review-list").querySelectorAll("input:checked")];for(const input of selected)addOpening(Number(input.value));renderPorts();$("cap-review").hidden=true;notice(selected.length+" 個の開口候補を追加しました。実際の開口かどうか、CAD と境界カードで確認してください。");}catch(e){notice(e.message,true);}});
-  $("add-antenna-button").addEventListener("click",()=>{if(state.selectedFace===null||state.antennaPreview)return;if(state.ports.some(p=>p.faces.includes(state.selectedFace))||state.antennas.some(a=>a.face===state.selectedFace)){notice("選択面は外部境界またはアンテナに指定済みです。",true);return;}let index=state.antennas.length+1;while(state.antennas.some(a=>a.name==="A"+index))index++;state.antennas.push({name:"A"+index,face:state.selectedFace,length_mm:5,pin_radius_mm:.5,coax_outer_radius_mm:1.67,dielectric_epsr:2.1,feed_length_mm:3,center_mm:null,inward_axis:null});renderAntennas();updatePortCount();});
+  $("add-antenna-button").addEventListener("click",addSelectedAntenna);
   $("preview-antennas").addEventListener("click",previewAntennas);
   $("restore-source").addEventListener("click",restoreSourceGeometry);
   $("field-mode").addEventListener("change",()=>{if($("field-mode").value!=="")selectMode(Number($("field-mode").value));});

@@ -27,6 +27,11 @@
         <div id="file-summary" class="file-summary" hidden><span class="file-icon">CAD</span><div><strong id="filename"></strong><small id="file-facts"></small></div><span class="check-icon">✓</span></div>
         <label class="field">解析する領域<select id="geometry-mode"><option value="metal_void">金属モデルから空隙を抽出</option><option value="vacuum_solid" selected>選択ソリッドを電磁場領域にする</option></select><span class="field-help" id="geometry-mode-help">選択したソリッドを電磁場領域として扱います。サンプルは半径 15 mm・高さ 20 mm の真空円筒です。</span></label>
         <label class="field">ソリッド<select id="solid-index"><option value="0">形状の読み込み後に選択</option></select></label>
+        <div id="automatic-openings" class="automatic-openings" hidden>
+          <label class="check-field"><input id="auto-openings" type="checkbox"> 抽出した開口を自動で外部ポートにする</label>
+          <p id="auto-openings-summary" class="help-note"></p><div id="auto-openings-list" class="auto-openings-list"></div>
+          <p class="help-note">金属の外接直方体で空隙を切った面を開口候補にします。面番号で強調表示できます。全ての実開口を検出する保証はありません。下の外部境界カードで編集・除外できます。</p>
+        </div>
       </section>
       <section class="control-section">
         <div class="section-heading"><span class="step-number">02</span><h2>固有モードとメッシュ</h2></div>
@@ -89,13 +94,13 @@
         </div></details>
         <div class="opening-controls">
           <h3>外部へ開いた面の境界</h3>
-          <p class="help-note">CAD で開口面を選んで追加します。アンテナと併用できますが、同じ面への重複指定はできません。</p>
+          <p class="help-note">自動ポートのカードを編集すると手動設定になります。CAD から面を追加することもできます。自動ポートの面にアンテナを置くと、その面はアンテナとして扱います。</p>
           <button id="add-port-button" class="button secondary wide" type="button" disabled>選択面を外部境界に追加</button>
           <button id="review-caps-button" class="text-button" type="button" disabled>人工キャップの候補をまとめて確認</button>
           <div id="cap-review" class="cap-review" hidden><p class="help-note">人工キャップは開口の候補です。実際の開口かどうかを確認して選択してください。形状中の全穴を検出した保証はありません。</p><div id="cap-review-list"></div><button id="apply-caps-button" class="button secondary small" type="button">選択した候補を追加</button><button id="cancel-caps-button" class="text-button" type="button">閉じる</button></div>
           <div id="port-list" class="port-list"><p class="empty-inline">外部境界は未設定です。</p></div>
           <p class="help-note">放射境界は外部媒質の平面波インピーダンスを使う近似です（真空で約 377 Ω）。PML による厳密な自由空間ではありません。上の同軸アンテナの回路インピーダンス 50 Ω とは別の量です。</p>
-          <details class="advanced"><summary>境界設定の JSON 編集</summary><div class="details-body"><label class="field">外部境界の定義<textarea id="ports-json" rows="6" spellcheck="false" aria-describedby="port-help">[]</textarea></label><p id="port-help" class="help-note">変更は「JSON を適用」で上の境界カードへ反映します。計算にはカードに表示された設定を使用します。</p><button id="apply-ports-json" class="button secondary small" type="button">JSON を適用</button><span id="ports-json-state" class="field-help">カードと同期済み</span></div></details>
+          <details class="advanced"><summary>手動境界の JSON 編集</summary><div class="details-body"><label class="field">手動の外部境界の定義<textarea id="ports-json" rows="6" spellcheck="false" aria-describedby="port-help">[]</textarea></label><p id="port-help" class="help-note">自動ポートはこの JSON に含めません。「JSON を適用」で手動カードに反映します。計算には自動ポートと手動カードの両方を使用します。</p><button id="apply-ports-json" class="button secondary small" type="button">JSON を適用</button><span id="ports-json-state" class="field-help">手動カードと同期済み</span></div></details>
         </div>
       </section>
       <div class="run-area"><div id="preflight-estimate" class="estimate-box" role="status"><strong id="estimate-title">計算時間の見積り</strong><span id="estimate-duration">条件を確認中</span><small id="estimate-detail">形状・設定・過去の実測から推定します。</small></div><button id="run-button" class="button primary wide" type="button" disabled><span class="run-icon" aria-hidden="true">▶</span><span id="run-label">解析を実行</span></button><button id="cancel-button" class="button secondary wide" type="button" hidden>計算を停止</button><p id="run-hint">先に STEP 形状を読み込んでください</p></div>
@@ -108,7 +113,7 @@
         <div class="card-toolbar"><div class="toolbar-title"><span class="panel-dot"></span><h3 id="viewer-title">CAD ビュー</h3><span id="viewer-subtitle">解析領域の確認</span></div><div class="toolbar-actions"><button id="reset-view" type="button" title="視点をリセット" aria-label="視点をリセット">⤢</button><button id="wire-toggle" type="button" aria-pressed="false" title="ワイヤーフレーム表示">WIRE</button></div></div>
         <div id="viewer-wrap" class="viewer-wrap"><canvas id="cad-canvas" aria-label="CAD 形状。ドラッグで回転、ホイールで拡大、面をクリックで選択。"></canvas>
           <div id="viewer-empty" class="viewer-empty"><h3>STEP を読み込んでください</h3><p>ここに解析領域の形状を表示します。</p></div>
-          <div class="viewer-coordinate" aria-hidden="true"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="axis-z">Z</span><small>mm</small></div><div class="viewer-legend">ドラッグ：回転 <i>·</i> スクロール：拡大 <i>·</i> クリック：面を選択</div>
+          <div class="viewer-coordinate" aria-hidden="true"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="axis-z">Z</span><small>mm</small></div><div class="viewer-legend">ドラッグ：回転 <i>·</i> スクロール：拡大 <i>·</i> クリック：面を選択<span id="auto-port-legend" hidden> · 黄：自動ポート</span></div>
           <div id="face-chip" class="face-chip" hidden>選択面 <strong id="selected-face">—</strong><button id="clear-face" type="button" aria-label="面選択を解除">×</button></div>
         </div>
         <div class="geometry-strip"><div><small>SOLIDS</small><strong id="solid-count">—</strong></div><div><small>FACES</small><strong id="face-count">—</strong></div><div class="extent-value"><small>BOUNDING BOX <span>mm</span></small><strong id="bbox-value">—</strong></div><div class="face-selector"><label for="face-select">面 ID を選択</label><select id="face-select" disabled><option value="">未選択</option></select></div></div>

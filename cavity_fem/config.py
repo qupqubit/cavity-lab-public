@@ -80,6 +80,7 @@ class SolveConfig(BaseModel):
     q_res: Optional[float] = Field(default=None, gt=0)
     analysis_mode: str = "resonance"
     all_artificial_caps: bool = False
+    excluded_artificial_cap_faces: List[int] = Field(default_factory=list)
     ports: List[Port] = Field(default_factory=list)
     antennas: List[Antenna] = Field(default_factory=list, max_length=8)
     antenna_sweep: Optional[AntennaSweep] = None
@@ -99,6 +100,9 @@ class SolveConfig(BaseModel):
             self.spectrum_enabled = False
         if self.geometry_mode not in ("metal_void", "vacuum_solid"):
             raise ValueError("geometry_mode must be metal_void or vacuum_solid")
+        excluded = self.excluded_artificial_cap_faces
+        if any(face < 1 for face in excluded) or len(excluded) != len(set(excluded)):
+            raise ValueError("自動開口から除外する面IDは正の整数で、重複させないでください。")
         if self.loss_model not in ("tls_qres", "surface_rs", "none"):
             raise ValueError("loss_model must be tls_qres, surface_rs, or none")
         if self.loss_model == "surface_rs" and self.rs_nohm is None:

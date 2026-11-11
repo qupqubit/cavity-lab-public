@@ -1,4 +1,4 @@
-"""Explicit external-boundary selection and source-CAD to generated-face mapping."""
+"""External-boundary selection and source-CAD to generated-face mapping."""
 from copy import deepcopy
 
 from .config import Port
@@ -14,14 +14,22 @@ def assign_external_boundaries(geometry, cfg):
     antenna_sources.update(port.get('source_face') for port in info.get('antenna_ports',[]) if port.get('source_face'))
     chosen=[(port,'explicit') for port in cfg.ports]
     assigned_sources={face for port in cfg.ports for face in port.faces}
-    names={port.name for port in cfg.ports}|{port['name'] for port in info.get('antenna_ports',[])}
+    names=({port.name for port in cfg.ports}|{antenna.name for antenna in cfg.antennas}
+           |{port['name'] for port in info.get('antenna_ports',[])})
     candidates={face['id'] for face in source_faces if face.get('artificial_cap',False)}
+    excluded=set(cfg.excluded_artificial_cap_faces)
+    invalid=excluded-candidates
+    if invalid:
+        raise ValueError('自動開口から除外する元面ID %s は、この解析領域の人工キャップではありません。'
+                         % ', '.join(str(face) for face in sorted(invalid)))
+    automatic_sources=set()
     if cfg.all_artificial_caps:
-        for face_id in sorted(candidates-assigned_sources-antenna_sources):
+        for face_id in sorted(candidates-assigned_sources-antenna_sources-excluded):
             name='opening_face_%d'%face_id
             while name in names:name+='_'  # Never collide with an explicitly named port.
             names.add(name)
             chosen.append((Port(name=name,faces=[face_id],kind='radiation'),'artificial_cap_candidate'))
+            automatic_sources.add(face_id)
     ports=[];used=set()
     for port,selection in chosen:
         if set(port.faces)&antenna_sources:
@@ -50,11 +58,16 @@ def assign_external_boundaries(geometry, cfg):
     info['oxide_wall_faces']=sorted(set(info.get('oxide_wall_faces',original_walls))-used)
     info['external_ports']=ports
     info['external_boundary_selection']={
+        'method':'unassigned_artificial_caps' if cfg.all_artificial_caps else 'explicit_only',
+        'all_artificial_caps':cfg.all_artificial_caps,
         'source_face_ids':sorted({face for port in ports for face in port['source_faces']}),
+        'automatic_source_face_ids':sorted(automatic_sources),
+        'explicit_source_face_ids':sorted(assigned_sources),
+        'excluded_artificial_cap_faces':sorted(excluded),
         'artificial_cap_candidates':sorted(candidates),
         'remaining_artificial_caps_pec':sorted(candidates-{face for port in ports for face in port['source_faces']}-antenna_sources),
         'all_physical_openings_identified':False,
-        'note':'Only explicitly assigned surfaces and, if selected, artificial-cap candidates are open. STEP does not identify every physical connection automatically.'}
+        'note':'Explicit ports and antennas take priority. Automatic selection opens only unassigned, non-excluded artificial caps with a first-order local radiation boundary in vacuum. STEP does not identify every physical connection automatically.'}
     if cfg.analysis_mode=='all_openings_qc' and not ports and not info.get('antenna_ports'):
         raise ValueError('Qcを求める外部開口または同軸アンテナを1つ以上指定してください。人工キャップは形状一覧で確認できます。')
     return info

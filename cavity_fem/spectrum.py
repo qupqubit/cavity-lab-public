@@ -401,6 +401,7 @@ def solve_advanced(domain,geometry,cfg,output_dir=None,progress=print,geometry_s
                 power=.5/port.impedance_ohm*float(np.vdot(vector,matrix@vector).real)*L0**2
                 metadata=next(item for item in system.external_port_data if item['name']==port.name)
                 ports.append({'name':port.name,'faces':port.faces,'source_faces':metadata.get('source_faces',port.faces),
+                              'selection':metadata.get('selection','explicit'),
                               'kind':port.kind,'qc_total_energy':omega*energy/power if power>1e-30 else None,
                               'qc_cavity':omega*cavity_energy/power if power>1e-30 and cavity_energy>0 else None,
                               'power_w_normalized':power,'impedance_ohm':port.impedance_ohm,
@@ -408,6 +409,10 @@ def solve_advanced(domain,geometry,cfg,output_dir=None,progress=print,geometry_s
                               'boundary_model':'first_order_local_outgoing_impedance','pml':False})
             for port in ports:
                 port['qc']=port['qc_cavity'] if cfg.analysis_mode=='all_openings_qc' else port['qc_total_energy']
+                port['qc_power_threshold_w_normalized']=1e-30
+                port['qc_status']=('finite' if port['qc'] is not None else
+                                   'below_power_threshold' if abs(port['power_w_normalized'])<=1e-30
+                                   else 'unavailable')
             outgoing_power=sum(port['power_w_normalized'] for port in ports)
             q_external_cavity=omega*cavity_energy/outgoing_power if outgoing_power>1e-30 and cavity_energy>0 else None
             q_external_total=omega*energy/outgoing_power if outgoing_power>1e-30 else None
@@ -455,10 +460,17 @@ def solve_advanced(domain,geometry,cfg,output_dir=None,progress=print,geometry_s
         'アンテナ金属はPECです。指定Rs・酸化膜は元の空洞壁にだけ適用します。実ピンの金属損失は別途必要です。']
     if system.local:
         warnings.append('開口のradiation/表面インピーダンスは局所一次の外向き波近似です。自由空間では約376.73Ωで、同軸の回路50Ωとは異なります。斜入射・エバネッセント波・高次モードは反射し得ます。PMLは未実装です。')
+    if any(port.get('qc_status')=='below_power_threshold' for mode in modes for port in mode['ports']):
+        warnings.append('流出電力が数値評価の閾値未満の境界はQcを未確定と表示します。厳密に結合ゼロまたは無限大のQcを証明したものではありません。')
     if cfg.analysis_mode=='all_openings_qc':
         warnings.append('全開口QcモードではS11計算を無効化しています。Qcは空洞bulk領域の電気・磁気エネルギーを用い、給電部を除きます。複素固有周波数のQとの比較にはqc_total_energyを使用します。')
-    if system.local or cfg.analysis_mode=='all_openings_qc':
-        warnings.append('開いているのは指定した外部境界と選択した人工キャップ候補だけです。STEPから実機の全接続を自動同定したことにはなりません。未指定面はPECです。')
+    if cfg.all_artificial_caps:
+        selection=geometry.get('external_boundary_selection',{})
+        warnings.append('空隙抽出で外接直方体上に作られた開口候補を自動で外部境界にしています。除外した面・アンテナ取付面・手動指定面はそれぞれの設定を優先します。自動認識は実機の全接続を保証しません。選択空隙と面一覧を確認してください。')
+        if selection.get('remaining_artificial_caps_pec'):
+            warnings.append('開口候補のうち導体壁として残した元面ID: '+', '.join(map(str,selection['remaining_artificial_caps_pec']))+'。これらの面の流出電力は計算しません。')
+    elif system.local or cfg.analysis_mode=='all_openings_qc':
+        warnings.append('開いているのは指定した外部境界だけです。空隙抽出時の開口の自動設定は無効です。未指定面はPECとして扱います。')
     highest=max([m['frequency_ghz'] for m in modes]+([cfg.spectrum_stop_ghz] if cfg.spectrum_enabled else []))
     for port in system.port_data:
         if highest>=port['te11_cutoff_ghz']:
