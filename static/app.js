@@ -2,6 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const state = { geometry: null, sourceGeometry: null, antennas: [], antennaPreview: false, result: null, jobId: null, active: false, loading: false, selectedMode: 0, selectedFace: null, poll: null, generation: 0, exampleAvailable: true, startedAt: null, executionLocation: "unknown", fieldCache: new Map(), fieldData: null, fieldGeneration: 0, ports: [], portsJsonDirty: false, estimate: null, estimateDetailParts: [], estimateTimer: null, estimateGeneration: 0, jobEstimate: null, transient: null, historyEstimates: [], restoredAllCaps: false, transientSamples: new Map(), memoryPlan: null, jobMemory: null, memoryLimitState: "pending", memoryConfig: null };
+  Object.assign(state,{memoryGeneration:0,memoryTimer:null,memoryRefreshing:false,memoryError:"",memoryFetchedAt:null,infoGeneration:0,jobStatus:null,jobMemoryAt:null,jobMemoryConfig:null});
   const statuses = { queued: "順番待ち", running: "計算中", completed: "計算完了", failed: "計算エラー", cancelled: "停止済み", ready: "形状読込済み", loading: "形状を確認中" };
   const mappings = { "geometry-mode": "geometry_mode", "solid-index": "solid_index", "maxh-mm": "maxh_mm", "order": "order", "n-modes": "n_modes", "target-ghz": "target_ghz", "threads": "threads", "rs-nohm": "rs_nohm", "bulk-epsr": "bulk_epsr", "bulk-tand": "bulk_tand", "oxide-thickness-nm": "oxide_thickness_nm", "oxide-epsr": "oxide_epsr", "oxide-tand": "oxide_tand", "loss-model": "loss_model", "temperature-k": "temperature_k", "photon-number": "photon_number", "tls-nc": "tls_nc", "tls-beta": "tls_beta", "q-res": "q_res" };
   Object.assign(mappings, {"analysis-mode":"analysis_mode","mode-search":"mode_search","spectrum-start-ghz":"spectrum_start_ghz","spectrum-stop-ghz":"spectrum_stop_ghz","spectrum-points":"spectrum_points","field-resolution":"field_resolution"});
@@ -42,14 +43,19 @@
     syncButtons();
   }
   async function api(path, options={}) {
-    const response=await fetch(path,options);
-    let data;
-    try { data=await response.json(); } catch { throw new Error("サーバーから有効な応答を取得できませんでした ("+response.status+")"); }
-    if(!response.ok) {
-      const d=data.detail || data.error || response.statusText;
-      throw new Error(Array.isArray(d)?d.map(x=>(x.loc||[]).join(".")+": "+x.msg).join("\n"):typeof d==="string"?d:JSON.stringify(d));
-    }
-    return data;
+    const {timeoutMs=0,...requestOptions}=options,controller=timeoutMs?new AbortController():null;
+    const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
+    try {
+      const response=await fetch(path,controller?{...requestOptions,signal:controller.signal}:requestOptions);
+      let data;
+      try { data=await response.json(); } catch(e) { if(controller?.signal.aborted)throw e;throw new Error("サーバーから有効な応答を取得できませんでした ("+response.status+")"); }
+      if(!response.ok) {
+        const d=data.detail || data.error || response.statusText;
+        throw new Error(Array.isArray(d)?d.map(x=>(x.loc||[]).join(".")+": "+x.msg).join("\n"):typeof d==="string"?d:JSON.stringify(d));
+      }
+      return data;
+    } catch(e) {if(controller?.signal.aborted)throw new Error("応答の待ち時間を超えました。起動状態を確認して再取得してください。");throw e;}
+    finally {if(timer!==null)clearTimeout(timer);}
   }
   const jsonPost = body => ({method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   function updateAnalysisMode(){
@@ -73,40 +79,78 @@
   function estimateShort(estimate){const remaining=remainingEstimate(estimate),time=finishTime(estimate.estimated_finish_at);return (remaining>0?"残り約 "+duration(remaining):"見積り更新待ち")+(time?" · 完了目安 "+time:"");}
   function estimateBasis(estimate){const confidence=({low:"概算",medium:"過去の実測を参考",high:"近い条件の実測を参考"})[estimate.confidence]||"概算";return confidence+(estimate.basis?" · "+(Array.isArray(estimate.basis)?estimate.basis.join(" / "):typeof estimate.basis==="string"?estimate.basis:JSON.stringify(estimate.basis)):"");}
   function memoryGiB(bytes){return num(bytes)&&Number(bytes)>=0?fmt(Number(bytes)/1073741824,2)+" GiB":"未取得";}
+  function memoryLow(memory){return ["low_memory","insufficient_memory","budget_exceeded","system_reserve_low"].includes(memory.status)||memory.violated===true;}
   function renderMemory(){
-    const activeMemory=state.active&&state.jobMemory?state.jobMemory:null;
-    const memory=activeMemory?{...(state.memoryPlan||{}),...activeMemory}:state.memoryPlan||{};
-    const low=["low_memory","insufficient_memory","budget_exceeded","system_reserve_low"].includes(memory.status)||memory.violated===true;
-    $("memory-panel").classList.toggle("memory-low",low);
-    setText("memory-status",low?"メモリの余裕が不足しています":memory.detected===false||memory.status==="unavailable"?"メモリ情報を取得できません":num(memory.total_bytes)||num(memory.available_bytes)?"計算を実行するPCの検出値":"メモリ情報は未取得です");
+    const memory=state.memoryPlan||{},ready=state.memoryLimitState==="ready",pending=state.memoryLimitState==="pending";
+    $("memory-panel").classList.toggle("memory-low",ready&&memoryLow(memory));
+    $("refresh-memory").disabled=state.memoryRefreshing;setText("refresh-memory",state.memoryRefreshing?"取得中…":"再取得");
+    setText("memory-status",pending?(state.memoryPlan?"前回の取得値を表示・更新中…":"メモリ情報を取得中…"):state.memoryLimitState==="unavailable"?"取得できませんでした。「再取得」で再試行できます。":state.memoryLimitState==="invalid"?"要素次数とモード数を確認してください。":memory.detected===false||memory.status==="unavailable"?"このPCのメモリ情報を取得できません。":memoryLow(memory)?"現在の空きメモリでは余裕が不足しています。":"計算を実行するPCの検出値");
     setText("memory-total",memoryGiB(memory.total_bytes));setText("memory-available",memoryGiB(memory.available_bytes));setText("memory-budget",memoryGiB(memory.budget_bytes));
-    const hasJobLimit=activeMemory&&num(activeMemory.dof_limit);
-    const limitReady=hasJobLimit||state.memoryLimitState==="ready";
-    setText("memory-dof",limitReady&&num(memory.dof_limit)?fmt(memory.dof_limit,0):state.memoryLimitState==="pending"&&!activeMemory?"更新中":state.memoryLimitState==="invalid"&&!activeMemory?"条件入力後に表示":"未取得");
+    setText("memory-dof",ready&&num(memory.dof_limit)?fmt(memory.dof_limit,0):pending?"更新中":state.memoryLimitState==="invalid"?"条件入力後に表示":"未取得");
     const config=state.memoryConfig;
-    setText("memory-context",activeMemory?"実行中の解析条件で判定します。":state.memoryLimitState==="ready"&&config?config.order+" 次・"+config.n_modes+" モードの設定で見積もり":"現在の要素次数とモード数で上限を見積もります。");
-    const live=$("memory-live");live.hidden=!activeMemory;
-    if(activeMemory)setText("memory-live","計算プロセスの使用量: "+memoryGiB(activeMemory.worker_rss_bytes));
-    const note=memory.reason||memory.note;$("memory-note").hidden=!note;setText("memory-note",typeof note==="string"?note:"");
+    setText("memory-context",(ready&&config?config.order+" 次・"+config.n_modes+" モードの設定で見積もり":state.memoryPlan?"前回取得した値です。現在の条件では未確認です。":"現在の要素次数とモード数で上限を見積もります。")+(state.memoryFetchedAt?" · 取得 "+finishTime(state.memoryFetchedAt):""));
+    const note=state.memoryError||memory.reason||memory.note;$("memory-note").hidden=!note;setText("memory-note",typeof note==="string"?note:"");
+    const job=state.jobMemory;$("memory-job").hidden=!job;if(!job)return;
+    $("memory-job").classList.toggle("memory-low",memoryLow(job));
+    const running=["queued","running"].includes(state.jobStatus),stopped=["failed","cancelled"].includes(state.jobStatus);
+    setText("memory-job-title",running?"この計算の実行中":stopped?"この計算の停止時":"この計算の記録");
+    const jobConfig=state.jobMemoryConfig||job.model;
+    setText("memory-job-context",(running?"実行中の計算に適用する値です。":"保存された診断値です。上の現在値とは異なります。")+(jobConfig?" · "+jobConfig.order+" 次・"+(jobConfig.n_modes??jobConfig.requested_modes)+" モード":"")+(state.jobMemoryAt?" · "+finishTime(state.jobMemoryAt):""));
+    setText("memory-job-budget",memoryGiB(job.budget_bytes));setText("memory-job-limit",num(job.dof_limit)?fmt(job.dof_limit,0):"未取得");
+    setText("memory-job-dofs",num(job.actual_dofs)?fmt(job.actual_dofs,0):"未計測");
+    setText("memory-job-peak",num(job.actual_dofs)?memoryGiB(job.estimated_peak_bytes):"未計測");
+    $("memory-live").hidden=!num(job.worker_rss_bytes);setText("memory-live","計算プロセスの使用量"+(running?"":"（最終取得）")+": "+memoryGiB(job.worker_rss_bytes));
+    const jobNote=job.reason||job.note;$("memory-job-note").hidden=!jobNote;setText("memory-job-note",typeof jobNote==="string"?jobNote:"");
   }
-  function scheduleEstimate(){
+  function scheduleMemory(){
+    clearTimeout(state.memoryTimer);const generation=++state.memoryGeneration;
+    state.memoryLimitState="pending";state.memoryError="";renderMemory();
+    state.memoryTimer=setTimeout(()=>requestMemory(generation),300);
+  }
+  async function requestMemory(generation=++state.memoryGeneration){
+    if(generation!==state.memoryGeneration)return false;
+    const order=Number($("order").value),n_modes=Number($("n-modes").value);
+    if(!Number.isInteger(order)||order<1||order>3||!Number.isInteger(n_modes)||n_modes<1||n_modes>12){state.memoryLimitState="invalid";renderMemory();return false;}
+    state.memoryLimitState="pending";state.memoryError="";renderMemory();
+    try {
+      const data=await api("/api/memory?order="+order+"&n_modes="+n_modes,{cache:"no-store",timeoutMs:12000});
+      if(generation!==state.memoryGeneration)return false;
+      if(!data.memory||typeof data.memory!=="object")throw new Error("メモリ情報が応答に含まれていません。アプリを更新して起動し直してください。");
+      state.memoryPlan=data.memory;state.memoryConfig={order,n_modes};state.memoryFetchedAt=data.memory.sampled_at||Date.now()/1000;state.memoryLimitState="ready";renderMemory();return true;
+    }catch(e){if(generation===state.memoryGeneration){state.memoryLimitState="unavailable";state.memoryError=e.message;renderMemory();}return false;}
+  }
+  async function loadServerInfo(){
+    const generation=++state.infoGeneration;
+    try {
+      const info=await api("/api/info",{cache:"no-store",timeoutMs:12000});if(generation!==state.infoGeneration)return false;
+      if(!state.memoryPlan&&info.memory&&typeof info.memory==="object")state.memoryPlan=info.memory;
+      renderMemory();updateExecutionLocation(info);setText("solver-label",(info.solver||"FEM")+" "+(info.version||""));setText("app-version",info.app_version?"v"+info.app_version:"");
+      $("app-version").title="画面ファイル: "+(document.documentElement.dataset.assetVersion||"未確認");state.exampleAvailable=info.example_available!==false;syncButtons();return true;
+    }catch(e){if(generation===state.infoGeneration){updateExecutionLocation();setText("solver-label","サーバー接続エラー");notice("ローカルサーバーに接続できません。起動状態を確認してください。 "+e.message,true);}return false;}
+  }
+  async function refreshMemory(){
+    if(state.memoryRefreshing)return;
+    clearTimeout(state.memoryTimer);state.memoryRefreshing=true;renderMemory();
+    try{await Promise.allSettled([loadServerInfo(),requestMemory()]);if(!state.active)scheduleEstimate(false);}
+    finally{state.memoryRefreshing=false;renderMemory();}
+  }
+  function scheduleEstimate(refreshMemoryPlan=true){
     clearTimeout(state.estimateTimer);state.estimateGeneration++;
+    if(refreshMemoryPlan)scheduleMemory();
     if(state.active)return;
-    state.memoryLimitState="pending";renderMemory();
     state.estimate=null;setText("estimate-duration","条件を確認中…");setText("estimate-detail","形状・設定・過去の実測から推定します。");
     const generation=state.estimateGeneration;state.estimateTimer=setTimeout(()=>requestEstimate(generation),650);
   }
   async function requestEstimate(generation){
     if(generation!==state.estimateGeneration||state.active)return;
-    let config;try{config=collectConfig(true);}catch{if(generation===state.estimateGeneration){setText("estimate-duration","条件入力後に表示");setText("estimate-detail","入力中の寸法・境界・掃引条件を確認してください。");state.memoryLimitState="invalid";renderMemory();}return;}
+    let config;try{config=collectConfig(true);}catch{if(generation===state.estimateGeneration){setText("estimate-duration","条件入力後に表示");setText("estimate-detail","入力中の寸法・境界・掃引条件を確認してください。");}return;}
     try{
-      const data=await api("/api/estimate",jsonPost(config));if(generation!==state.estimateGeneration||state.active)return;
-      state.memoryPlan=data.memory&&typeof data.memory==="object"?data.memory:null;state.memoryConfig={order:config.order,n_modes:config.n_modes};state.memoryLimitState="ready";renderMemory();
+      const data=await api("/api/estimate",{...jsonPost(config),timeoutMs:12000});if(generation!==state.estimateGeneration||state.active)return;
       const estimate=data.estimate;state.estimate=estimate;
       setText("estimate-title","全解析の所要時間（概算）");
       setText("estimate-duration",num(estimate.lower_s)&&num(estimate.upper_s)?duration(estimate.lower_s)+"〜"+duration(estimate.upper_s):"約 "+duration(estimate.total_s??estimate.remaining_s));
       const parts=[estimateBasis(estimate)];if(Number(estimate.queued_wait_s)>0)parts.push("順番待ち約 "+duration(estimate.queued_wait_s));const scope=["形状・メッシュ・固有モード・電場出力"];if(config.spectrum_enabled&&config.antennas.length)scope.push("S11");if(config.antenna_sweep)scope.push("長さ掃引");parts.push(scope.join("・")+"を含む。条件によって増減します。");state.estimateDetailParts=parts;renderPreflightFinish();
-    }catch{if(generation===state.estimateGeneration){setText("estimate-duration","見積りを取得できません");setText("estimate-detail","設定を変更すると再試行します。解析の実行は可能です。");state.memoryLimitState="unavailable";renderMemory();}}
+    }catch{if(generation===state.estimateGeneration){setText("estimate-duration","見積りを取得できません");setText("estimate-detail","設定を変更するか、メモリ欄の「再取得」で再試行できます。");}}
   }
   function renderPreflightFinish(){
     if(state.active||!state.estimate)return;
@@ -355,7 +399,9 @@
   }
   function renderJob(job) {
     state.jobId=job.id;state.active=["queued","running"].includes(job.status);
-    state.jobMemory=job.memory&&typeof job.memory==="object"?job.memory:null;renderMemory();
+    state.jobStatus=job.status;const jobMemory=job.memory||job.result?.memory_policy;
+    state.jobMemory=jobMemory&&typeof jobMemory==="object"?jobMemory:null;
+    state.jobMemoryAt=state.jobMemory?.sampled_at||job.finished_at||null;state.jobMemoryConfig=job.config||job.result?.config||null;renderMemory();
     state.jobEstimate=job.estimate?{...job.estimate,receivedAt:Date.now()}:null;for(const item of state.historyEstimates)if(item.id===job.id)item.estimate=state.jobEstimate;renderProgress();
     if(job.created_at)state.startedAt=job.created_at*1000;
     setStatus(job.status);setText("log-stage",job.stage || statuses[job.status] || job.status);
@@ -783,11 +829,12 @@
   const tabs=[...document.querySelectorAll("[data-tab]")];
   tabs.forEach(tab=>{tab.addEventListener("click",()=>switchTab(tab.dataset.tab));tab.addEventListener("keydown",e=>{if(["ArrowLeft","ArrowRight"].includes(e.key)){e.preventDefault();const visible=tabs.filter(item=>!item.hidden),index=visible.indexOf(tab);const next=visible[(index+(e.key==="ArrowRight"?1:visible.length-1))%visible.length];switchTab(next.dataset.tab);next.focus();}});});
   $("refresh-jobs").addEventListener("click",refreshJobs);
+  $("refresh-memory").addEventListener("click",refreshMemory);
   $("analysis-mode").addEventListener("change",updateAnalysisMode);
   document.querySelector(".controls").addEventListener("input",e=>{if(e.target.id!=="ports-json")scheduleEstimate();});
   document.querySelector(".controls").addEventListener("change",e=>{if(e.target.id!=="ports-json")scheduleEstimate();});
   setInterval(()=>{renderProgress();renderPreflightFinish();for(const item of state.historyEstimates)if(item.element.isConnected&&item.estimate)item.element.textContent=estimateShort(item.estimate);},1000);
   setInterval(()=>{if(state.historyEstimates.length)refreshJobs();},10000);
   updateGeometryHelp();updateLossModel();updateAnalysisMode();switchTab("modes");syncButtons();refreshJobs();
-  api("/api/info").then(info=>{if(!state.memoryPlan&&info.memory&&typeof info.memory==="object")state.memoryPlan=info.memory;renderMemory();updateExecutionLocation(info);setText("solver-label",(info.solver||"FEM")+" "+(info.version||""));state.exampleAvailable=info.example_available!==false;syncButtons();}).catch(e=>{state.memoryLimitState="unavailable";renderMemory();updateExecutionLocation();setText("solver-label","サーバー接続エラー");notice("ローカルサーバーに接続できません。起動状態を確認してください。 "+e.message,true);});
+  loadServerInfo();
 })();

@@ -68,11 +68,13 @@ def test_worker_main_records_memory_error_without_traceback(tmp_path, monkeypatc
     config_path.write_text(json.dumps({"order": 2}), encoding="utf-8")
     output = tmp_path / "job"
     message = "総自由度 700,000 がメモリ予算に基づく上限を超えました。"
+    policy = {"actual_dofs": 700000, "budget_bytes": 3 * 1024 ** 3,
+              "estimated_peak_bytes": 20 * 1024 ** 3, "dof_limit": 100000}
     calls = []
 
     def fail_analysis(path, cfg, folder, progress):
         calls.append((path, cfg, folder))
-        raise MemoryBudgetExceeded(message)
+        raise MemoryBudgetExceeded(message, policy)
 
     monkeypatch.setattr(worker, "run_analysis", fail_analysis)
     monkeypatch.setattr(sys, "argv", ["worker", "--input", "source.step",
@@ -81,8 +83,10 @@ def test_worker_main_records_memory_error_without_traceback(tmp_path, monkeypatc
         worker.main()
     assert error.value.code == 2
     assert calls == [("source.step", {"order": 2}, str(output))]
-    assert json.loads((output / "error.json").read_text(encoding="utf-8")) == {
-        "kind": "memory_limit", "message": message}
+    recorded = json.loads((output / "error.json").read_text(encoding="utf-8"))
+    assert recorded == {"kind": "memory_limit", "message": message,
+                        "policy": policy, "sampled_at": recorded["sampled_at"]}
+    assert recorded["sampled_at"] > 0
     captured = capsys.readouterr()
     assert captured.out == message + "\n"
     assert captured.err == ""

@@ -263,6 +263,17 @@ def test_browser_opens_once_only_after_readiness(app, monkeypatch):
     assert events == ['healthy', 'browser', ('stop', process)]
 
 
+def test_browser_version_url_bypasses_old_cached_document(monkeypatch, capsys):
+    opened = []
+    monkeypatch.setattr(boot.webbrowser, 'open', lambda url, **kwargs: opened.append(url) or True)
+    boot.open_browser(8768, version='0.1.4')
+    assert opened == ['http://127.0.0.1:8768/?v=0.1.4']
+    assert opened[0] in capsys.readouterr().out
+    boot.open_browser(8769, disabled=True, version='0.1.4')
+    assert len(opened) == 1
+    assert 'http://127.0.0.1:8769/?v=0.1.4' in capsys.readouterr().out
+
+
 def test_startup_conflict_stops_only_owned_child_without_opening_browser(app, monkeypatch):
     process = lifecycle_app(app, monkeypatch)
     stopped = []

@@ -72,8 +72,9 @@ def main():
     except MemoryBudgetExceeded as exc:
         folder = Path(args.output)
         folder.mkdir(parents=True, exist_ok=True)
-        (folder/'error.json').write_text(json.dumps({'kind': 'memory_limit', 'message': str(exc)},
-                                                 ensure_ascii=False), encoding='utf-8')
+        (folder/'error.json').write_text(json.dumps(
+            {'kind': 'memory_limit', 'message': str(exc), 'policy': exc.policy,
+             'sampled_at': time.time()}, ensure_ascii=False, allow_nan=False), encoding='utf-8')
         print(str(exc), flush=True)
         raise SystemExit(2)
 

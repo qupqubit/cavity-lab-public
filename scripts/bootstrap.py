@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 import webbrowser
@@ -308,8 +309,10 @@ def wait_healthy(process, port, expected, instance_id, timeout=90):
     raise BootstrapError('ローカルサーバーの起動確認が時間内に完了しませんでした。')
 
 
-def open_browser(port, disabled=False):
-    url = f'http://127.0.0.1:{port}'
+def open_browser(port, disabled=False, version=None):
+    # A new document URL also evicts HTML cached by older app releases.
+    query = urllib.parse.urlencode({'v': version}) if version else ''
+    url = f'http://127.0.0.1:{port}/' + ('?' + query if query else '')
     print('キャビティ解析: '+url, flush=True)
     if not disabled:
         try:
@@ -333,16 +336,16 @@ def main(argv=None):
         no_browser = args.no_browser or os.environ.get('CAVITY_FEM_NO_BROWSER') == '1'
         if existing_server(port, expected):
             print('このフォルダのキャビティ解析は既に起動しています。', flush=True)
-            open_browser(port, no_browser)
+            open_browser(port, no_browser, expected['version'])
             return 0
         with preparation_lock(root, port, expected) as acquired:
             if not acquired or existing_server(port, expected):
-                open_browser(port, no_browser)
+                open_browser(port, no_browser, expected['version'])
                 return 0
             executable = ensure_environment(root, os.environ.get('CAVITY_FEM_PYTHON'), install=not args.no_install)
             # Recheck after potentially lengthy setup; never touch someone else's process.
             if existing_server(port, expected):
-                open_browser(port, no_browser)
+                open_browser(port, no_browser, expected['version'])
                 return 0
             instance_id = str(uuid.uuid4())
             env = python_environment()
@@ -351,7 +354,7 @@ def main(argv=None):
             child = subprocess.Popen([str(executable), '-X', 'utf8', '-m', 'cavity_fem.api'], cwd=root,
                                      env=env, creationflags=flags)
             wait_healthy(child, port, expected, instance_id)
-            open_browser(port, no_browser)
+            open_browser(port, no_browser, expected['version'])
         print('計算はこのPCで実行されます。終了するにはこのウィンドウでCtrl+Cを押してください。', flush=True)
         return child.wait()
     except KeyboardInterrupt:

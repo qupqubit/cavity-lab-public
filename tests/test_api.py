@@ -241,6 +241,31 @@ def test_memory_policy_is_exposed_without_host_ram_dependency(isolated_api):
     assert response.json()["memory"] == expected
 
 
+def test_memory_refresh_is_independent_of_invalid_cad_and_other_settings(isolated_api, monkeypatch):
+    client, _ = isolated_api
+    configs = []
+    def record_policy(config=None):
+        configs.append(config)
+        return known_memory_policy()
+    monkeypatch.setattr(api, 'memory_policy', record_policy)
+    invalid = client.post('/api/estimate', json={'geometry_id': 'missing', 'maxh_mm': -1})
+    assert invalid.status_code == 422
+    response = client.get('/api/memory?order=1&n_modes=6')
+    assert response.status_code == 200
+    assert configs == [{'order': 1, 'n_modes': 6}]
+    data = response.json()
+    assert data['config'] == configs[0]
+    assert data['memory']['sampled_at'] > 0
+    for key, value in known_memory_policy().items():
+        assert data['memory'][key] == value
+
+
+@pytest.mark.parametrize('query', ['order=0', 'order=4', 'n_modes=0', 'n_modes=13', 'order=abc'])
+def test_memory_refresh_rejects_invalid_inputs(isolated_api, query):
+    client, _ = isolated_api
+    assert client.get('/api/memory?' + query).status_code == 422
+
+
 @pytest.mark.parametrize("unavailable_status", ["unavailable", "insufficient_memory"])
 def test_worker_memory_unavailable_prevents_spawn(isolated_api, monkeypatch, unavailable_status):
     client, data = isolated_api
@@ -329,6 +354,8 @@ def test_runtime_memory_violation_stops_only_registered_worker(isolated_api, mon
     assert job["error"] == reason
     assert job["memory"]["worker_rss_bytes"] == 7 * GIB
     assert job["memory"]["budget_bytes"] == known_memory_policy()["budget_bytes"]
+    assert job["failure_kind"] == "memory_limit"
+    assert job["memory"]["sampled_at"] > 0
     assert sampled == [(worker.pid, 6 * GIB, 3 * GIB)]
     assert worker.kill_count == 1
     assert worker.poll() == -9
@@ -339,15 +366,21 @@ def test_runtime_memory_violation_stops_only_registered_worker(isolated_api, mon
     assert other.wait_calls == []
 
 
-def test_worker_resource_error_json_surfaces_human_message(isolated_api, monkeypatch):
+@pytest.mark.parametrize('captured_policy', [None, {'actual_dofs': 190000,
+                         'budget_bytes': 3 * GIB, 'estimated_peak_bytes': 5 * GIB,
+                         'dof_limit': 100000, 'order': 2, 'n_modes': 3}])
+def test_worker_resource_error_json_surfaces_human_message(isolated_api, monkeypatch, captured_policy):
     client, data = isolated_api
     folder, source = new_job(data)
     message = "メモリ予算の上限を超えました。最大要素寸法を大きくして再試行してください。"
 
     class ResourceFailure(ControlledProcess):
         def wait(self, timeout=None):
+            failure = {"kind": "memory_limit", "message": message}
+            if captured_policy is not None:
+                failure.update(policy=captured_policy, sampled_at=1234567890)
             (folder / "error.json").write_text(json.dumps(
-                {"kind": "memory_limit", "message": message}, ensure_ascii=False))
+                failure, ensure_ascii=False))
             (folder / "solver.log").write_text("Traceback: internal resource guard details")
             self.returncode = 1
             return 1
@@ -358,6 +391,16 @@ def test_worker_resource_error_json_surfaces_human_message(isolated_api, monkeyp
     assert job["status"] == "failed"
     assert job["error"] == message
     assert "Traceback" not in job["error"]
+    assert job['failure_kind'] == 'memory_limit'
+    assert job['memory']['violated'] is True
+    assert job['memory']['reason'] == message
+    assert job['memory']['total_bytes'] == known_memory_policy()['total_bytes']
+    if captured_policy is not None:
+        assert job['memory']['sampled_at'] == 1234567890
+        for key, value in captured_policy.items():
+            assert job['memory'][key] == value
+    else:
+        assert job['memory']['sampled_at'] > 0
     assert not api.processes
 
 

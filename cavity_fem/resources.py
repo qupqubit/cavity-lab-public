@@ -153,18 +153,29 @@ def _failure_message(policy, cfg):
                 "起動環境のpsutilとメモリ監視を確認してください。")
     if policy.get("status") == "invalid_inherited_budget":
         return "起動時のメモリ予算が不正なため、安全のため計算を停止しました。アプリを再起動してください。"
+    order = int(_setting(cfg, "order", 2))
+    mesh_advice = ("まず要素次数を{before}から{after}に下げて試してください。"
+                   "最大要素サイズを大きくする方法もあります。".format(before=order, after=order-1)
+                   if order > 1 else "最大要素サイズを大きくして再実行してください。")
     return (
         "現在のメモリ予算で計算を続行できません。"
         "総自由度 {actual:,}、このPCの自動上限 {limit:,}、予算 {budget:.2f} GiB、"
         "推定ピーク {peak:.2f} GiB（最大要素サイズ {h} mm、次数 {order}）。"
-        "最大要素サイズを大きくするか、要素次数を下げて再実行してください。"
+        "物理メモリ {total:.2f} GiB、現在の空き {available:.2f} GiB、"
+        "PCに残す空き容量 {reserve:.2f} GiB。"
+        "{mesh_advice}"
         "アンテナ付近や細い隙間の局所メッシュは粗くなりにくい場合があります。"
+        "他のアプリや計算を終了してから新しい計算を開始すると、空き容量に応じて予算を再計算します。"
+        "予算が増える場合もありますが、物理メモリの半分を超えることはありません。"
         "モード数・スレッド数・周波数点数を減らしてもメッシュ自由度は減りません。"
         "粗い設定は試行用とし、最終的な周波数・Qcはメッシュ収束を確認してください。"
     ).format(actual=policy["actual_dofs"], limit=policy["dof_limit"],
              budget=policy["budget_bytes"] / GIB,
              peak=policy["estimated_peak_bytes"] / GIB,
-             h=_setting(cfg, "maxh_mm", "不明"), order=_setting(cfg, "order", 2))
+             total=policy["total_bytes"] / GIB,
+             available=policy["available_bytes"] / GIB,
+             reserve=policy["reserve_bytes"] / GIB, mesh_advice=mesh_advice,
+             h=_setting(cfg, "maxh_mm", "不明"), order=order)
 
 
 def check_mesh_memory(ndof, cfg, progress=lambda _: None):

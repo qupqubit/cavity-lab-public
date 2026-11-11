@@ -1,4 +1,6 @@
 import concurrent.futures
+import hashlib
+import html
 import json
 import os
 import shutil
@@ -8,9 +10,10 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Query
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -36,14 +39,21 @@ processes = {}
 
 @app.middleware("http")
 async def same_origin(request: Request, call_next):
+    response = None
     if request.method not in ("GET", "HEAD", "OPTIONS"):
         origin = request.headers.get("origin")
         expected_origin = "%s://%s" % (request.url.scheme, request.headers.get("host", ""))
         if origin and origin != expected_origin:
-            return JSONResponse({"detail": "ローカル画面と同じオリジンから実行してください。"}, status_code=403)
-    response = await call_next(request)
+            response = JSONResponse({"detail": "ローカル画面と同じオリジンから実行してください。"}, status_code=403)
+    if response is None:
+        response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
+    # This is a local app whose files may be replaced by a ZIP upgrade. Never
+    # combine cached UI files or stale API state with a newer installation.
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
 
@@ -140,7 +150,7 @@ def wait_for_worker(process, folder, policy, timeout=1800):
             previous = read_json(folder/'state.json', {})
             running = previous.get('status') == 'running'
             if running:
-                save_state(folder, memory={**policy, **live})
+                save_state(folder, memory={**policy, **live, 'sampled_at': time.time()})
         if not running:
             # A cancellation need not wait for a native routine to react to
             # terminate(). Its terminal state is preserved by run_worker().
@@ -148,6 +158,9 @@ def wait_for_worker(process, folder, policy, timeout=1800):
         if live.get('violated'):
             # Stop our worker immediately instead of waiting for a native allocation.
             stop_worker(process)
+            with state_lock:
+                if read_json(folder/'state.json', {}).get('status') == 'running':
+                    save_state(folder, failure_kind='memory_limit')
             raise RuntimeError(live.get('reason') or "メモリの余裕を確保できないため計算を停止しました。")
 
 
@@ -184,6 +197,11 @@ def run_worker(folder, source):
             if code != 0 or not (folder / "result.json").is_file():
                 failure = read_json(folder/'error.json', {})
                 if failure.get('kind') == 'memory_limit' and isinstance(failure.get('message'), str):
+                    captured = failure.get('policy')
+                    captured = captured if isinstance(captured, dict) else {}
+                    save_state(folder, failure_kind='memory_limit', memory={
+                        **previous.get('memory', {}), **captured, 'violated': True,
+                        'reason': failure['message'], 'sampled_at': failure.get('sampled_at') or time.time()})
                     raise RuntimeError(failure['message'])
                 raise RuntimeError((folder/"solver.log").read_text(errors="replace")[-3500:])
             save_state(folder, status="completed", stage="計算が完了しました", finished_at=time.time())
@@ -220,6 +238,13 @@ def info():
             "sample": {"name": "Circular vacuum cavity", "geometry_mode": "vacuum_solid",
                        "radius_mm": 15, "height_mm": 20,
                        "provenance": "Generated from an analytic cylinder; no supplied CAD"}}
+
+
+@app.get("/api/memory")
+def inspect_memory(order: int = Query(2, ge=1, le=3), n_modes: int = Query(3, ge=1, le=12)):
+    """Refresh physical memory independently of CAD and other input validity."""
+    config = {'order': order, 'n_modes': n_modes}
+    return {'memory': {**memory_policy(config), 'sampled_at': time.time()}, 'config': config}
 
 
 @app.post("/api/estimate")
@@ -377,10 +402,29 @@ def field_slice(jid: str, mode: int):
 
 @app.get("/")
 def index():
-    return FileResponse(ROOT/"static/index.html")
+    directory = ROOT/"static"
+    template = (directory/"index.html").read_text(encoding="utf-8")
+    digest = hashlib.sha256(__version__.encode("utf-8"))
+    # Hash bytes rather than mtime/size: ZIP extraction can preserve both even
+    # when same-length content changes. One token identifies the complete UI.
+    for name, content in (("index.html", template.encode("utf-8")),
+                          ("style.css", (directory/"style.css").read_bytes()),
+                          ("app.js", (directory/"app.js").read_bytes())):
+        digest.update(name.encode("utf-8")+b"\0"+content+b"\0")
+    asset_version = quote(__version__, safe="")+"-"+digest.hexdigest()[:16]
+    content = template.replace("__ASSET_VERSION__", asset_version)
+    content = content.replace("__APP_VERSION__", html.escape(__version__, quote=True))
+    return HTMLResponse(content, headers={"X-App-Version": __version__, "X-Asset-Version": asset_version})
 
 
-app.mount("/static", StaticFiles(directory=ROOT/"static"), name="static")
+class UncachedStaticFiles(StaticFiles):
+    def is_not_modified(self, response_headers, request_headers):
+        # The default validator uses only mtime and file size. Ignore validators
+        # left by an older release and send current bytes even for old URLs.
+        return False
+
+
+app.mount("/static", UncachedStaticFiles(directory=ROOT/"static"), name="static")
 
 
 def main():

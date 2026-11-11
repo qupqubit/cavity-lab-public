@@ -144,6 +144,36 @@ def test_worker_rejection_has_counts_parameters_and_heuristic(monkeypatch):
     assert p["estimated_peak_bytes"] > p["budget_bytes"]
     assert "700,000" in str(error.value) and "0.8 mm" in str(error.value)
     assert "次数 3" in str(error.value) and "推定" in str(error.value)
+    assert "物理メモリ 16.00 GiB" in str(error.value)
+    assert "現在の空き 8.00 GiB" in str(error.value)
+    assert "PCに残す空き容量 2.40 GiB" in str(error.value)
+    assert "次数を3から2" in str(error.value)
+    assert "新しい計算を開始" in str(error.value)
+    assert "物理メモリの半分を超えることはありません" in str(error.value)
+
+
+def test_failure_at_order_one_recommends_larger_elements_not_order_zero(monkeypatch):
+    monkeypatch.setattr(r, "_snapshot", lambda: snapshot(total=16, available=8, rss=.5))
+    with pytest.raises(r.MemoryBudgetExceeded) as error:
+        r.check_mesh_memory(700000, {"order": 1, "maxh_mm": 2})
+    assert "最大要素サイズを大きくして" in str(error.value)
+    assert "次数を1から0" not in str(error.value)
+
+
+def test_inherited_budget_recomputes_limit_for_actual_order(monkeypatch):
+    monkeypatch.setattr(r, "_snapshot", lambda: snapshot(total=32, available=24, rss=.5))
+    budget = 3*r.GIB
+    monkeypatch.setenv(r.MEMORY_BUDGET_ENV, str(budget))
+    with pytest.raises(r.MemoryBudgetExceeded) as error:
+        r.check_mesh_memory(190000, {"order": 2, "n_modes": 3, "maxh_mm": 2})
+    failed = error.value.policy
+    assert failed["budget_bytes"] == budget
+    assert r.memory_peak(failed["dof_limit"], {"order": 2}) <= budget
+    assert r.memory_peak(failed["dof_limit"]+1, {"order": 2}) > budget
+    recovered = r.check_mesh_memory(50000, {"order": 1, "n_modes": 3, "maxh_mm": 2})
+    assert recovered["budget_bytes"] == budget
+    assert recovered["dof_limit"] > failed["dof_limit"]
+    assert recovered["estimated_peak_bytes"] < budget
 
 
 def test_current_reserve_and_missing_rss_fail_closed(monkeypatch):

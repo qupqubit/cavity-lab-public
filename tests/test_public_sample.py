@@ -63,7 +63,7 @@ def test_public_api_sample_info_and_health(tmp_path, monkeypatch):
     with TestClient(api.app, base_url='http://127.0.0.1:8768') as client:
         health = client.get('/api/health').json()
         assert health['app'] == 'cavity-lab-public'
-        assert health['version'] == __version__ == '0.1.3'
+        assert health['version'] == __version__ == '0.1.4'
         assert health['development'] is False
         info = client.get('/api/info').json()
         assert set(info) == {'solver', 'version', 'example_available', 'local_only', 'app_version', 'sample', 'memory'}
@@ -81,7 +81,7 @@ def test_public_api_sample_info_and_health(tmp_path, monkeypatch):
 
 
 def test_public_api_route_surface_is_explicit():
-    allowed = {'/api/health', '/api/info', '/api/estimate', '/api/inspect', '/api/example',
+    allowed = {'/api/health', '/api/info', '/api/memory', '/api/estimate', '/api/inspect', '/api/example',
                '/api/geometries/{gid}/inspect', '/api/geometries/{gid}/antennas', '/api/jobs',
                '/api/jobs/{jid}', '/api/jobs/{jid}/cancel', '/api/jobs/{jid}/result.json',
                '/api/jobs/{jid}/mode/{mode}.vtu', '/api/jobs/{jid}/mode/{mode}/field.json'}

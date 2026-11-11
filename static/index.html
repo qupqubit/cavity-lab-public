@@ -1,18 +1,18 @@
 <!doctype html>
-<html lang="ja">
+<html lang="ja" data-asset-version="__ASSET_VERSION__">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0c1728">
   <meta name="robots" content="noindex,nofollow">
   <title>キャビティ FEM 解析</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <script src="/static/app.js" defer></script>
+  <link rel="stylesheet" href="/static/style.css?v=__ASSET_VERSION__">
+  <script src="/static/app.js?v=__ASSET_VERSION__" defer></script>
 </head>
-<body>
+<body data-app-version="__APP_VERSION__">
   <header class="app-header">
     <div class="header-detail"><span id="runtime-location" class="runtime-location" role="status" aria-live="polite" title="計算とデータ保存を行うPCを確認しています。"><span id="runtime-dot" class="local-dot checking" aria-hidden="true"></span><span id="runtime-label">実行先を確認中</span></span><span class="header-divider"></span><span id="solver-label">ソルバー接続中</span></div>
-    <a class="header-link" href="/docs" target="_blank" rel="noreferrer">API <span aria-hidden="true">↗</span></a>
+    <span id="app-version" class="app-version"></span><a class="header-link" href="/docs" target="_blank" rel="noreferrer">API <span aria-hidden="true">↗</span></a>
   </header>
   <main class="app-shell">
     <aside class="controls" aria-label="解析設定">
@@ -39,9 +39,14 @@
         <p class="help-note">損失・participationの積分など、並列化に対応する処理に使います。Pythonが1つ表示されていても内部で複数コアを使います。処理によっては1コアで動きます。</p>
         <p class="help-note">小さいメッシュと高い次数は精度と計算時間に影響します。収束を確かめてから結果を採用してください。</p>
         <div id="memory-panel" class="memory-panel" role="status" aria-live="polite">
-          <h3>実行PCのメモリ</h3><p id="memory-status" class="memory-status">情報を確認中</p>
-          <dl class="memory-facts"><div><dt>総容量</dt><dd id="memory-total">未取得</dd></div><div><dt>利用可能量</dt><dd id="memory-available">未取得</dd></div><div><dt>解析に使う予算</dt><dd id="memory-budget">未取得</dd></div><div><dt>自由度の安全上限（目安）</dt><dd id="memory-dof">更新中</dd></div></dl>
-          <p id="memory-context" class="help-note">現在の要素次数とモード数で上限を見積もります。</p><p id="memory-live" class="memory-live" hidden></p><p id="memory-note" class="help-note" hidden></p>
+          <div class="memory-heading"><h3>現在のPC・設定のメモリ</h3><button id="refresh-memory" class="text-button" type="button">再取得</button></div><p id="memory-status" class="memory-status">未取得です。「再取得」で確認できます。</p>
+          <dl class="memory-facts"><div><dt>総容量</dt><dd id="memory-total">未取得</dd></div><div><dt>利用可能量</dt><dd id="memory-available">未取得</dd></div><div><dt>解析に使う予算</dt><dd id="memory-budget">未取得</dd></div><div><dt>自由度の安全上限（目安）</dt><dd id="memory-dof">未取得</dd></div></dl>
+          <p id="memory-context" class="help-note">現在の要素次数とモード数で上限を見積もります。</p><p id="memory-note" class="help-note" hidden></p>
+          <section id="memory-job" class="memory-job" hidden aria-label="選択した計算のメモリ診断">
+            <h3 id="memory-job-title">この計算の記録</h3><p id="memory-job-context" class="help-note"></p>
+            <dl class="memory-facts"><div><dt>この計算の予算</dt><dd id="memory-job-budget">未取得</dd></div><div><dt>この計算の自由度上限</dt><dd id="memory-job-limit">未取得</dd></div><div><dt>作成された総自由度</dt><dd id="memory-job-dofs">未計測</dd></div><div><dt>その自由度の推定ピーク</dt><dd id="memory-job-peak">未計測</dd></div></dl>
+            <p id="memory-live" class="memory-live" hidden></p><p id="memory-job-note" class="help-note" hidden></p>
+          </section>
           <p class="help-note">上限内でもメモリ不足は起こり得ます。行列分解に必要な量は形状・メッシュによって変わります。</p>
           <details class="memory-help"><summary>必要メモリを減らすには</summary><p class="help-note">最大要素寸法を大きくするか、要素次数を下げてください。モード数を減らしてもメッシュの自由度は減りません。</p></details>
         </div>
