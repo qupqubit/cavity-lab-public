@@ -106,6 +106,28 @@ def test_tem_overlap_is_orthogonal_to_scalar_gradients_on_terminal(line):
     assert np.max(np.abs(overlap))<1e-11
 
 
+def test_frequency_sweep_releases_fields_between_points():
+    import weakref
+    from cavity_fem.spectrum import spectrum_samples
+
+    class System:
+        port_data=[{'name':'feed','characteristic_impedance_ohm':50}]
+        previous=None
+
+        def driven(self,frequency,port):
+            assert self.previous is None or self.previous() is None
+            vector=np.ones(16,dtype=complex)
+            self.previous=weakref.ref(vector)
+            return {'vector':vector,'scattering':np.array([.5+0j]),
+                    'absorbed_power_w':.75,'power_balance_error':0}
+
+    system=System()
+    result=spectrum_samples(system,SolveConfig(spectrum_points=5),[],lambda _:None)
+    assert system.previous() is None
+    assert result['s11_real']==[.5]*5
+    assert result['absorbed_power_w']==[.75]*5
+
+
 def test_inserted_pin_changes_resonance_and_external_coupling():
     from cavity_fem.config import Antenna
     records=[]

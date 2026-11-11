@@ -6,6 +6,7 @@ from pathlib import Path
 from .solver import solve
 from .config import SolveConfig
 from .estimates import ProgressTracker
+from .resources import MemoryBudgetExceeded
 
 
 def run_analysis(path, config, output, progress=print):
@@ -66,7 +67,15 @@ def main():
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     cfg = json.loads(Path(args.config).read_text())
-    run_analysis(args.input, cfg, args.output, progress=lambda text: print(text, flush=True))
+    try:
+        run_analysis(args.input, cfg, args.output, progress=lambda text: print(text, flush=True))
+    except MemoryBudgetExceeded as exc:
+        folder = Path(args.output)
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder/'error.json').write_text(json.dumps({'kind': 'memory_limit', 'message': str(exc)},
+                                                 ensure_ascii=False), encoding='utf-8')
+        print(str(exc), flush=True)
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

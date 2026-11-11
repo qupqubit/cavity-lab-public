@@ -69,8 +69,8 @@ class MaxwellSystem:
         self.eps = mesh.MaterialCF({name: value['epsr'] for name, value in self.materials.items()}, default=cfg.bulk_epsr)
         self.eps_tand = mesh.MaterialCF({name: value['epsr'] * value.get('tand', 0) for name, value in self.materials.items()}, default=cfg.bulk_epsr * cfg.bulk_tand)
         self.fes = fes = ng.HCurl(mesh, order=cfg.order, dirichlet=self.wall_names, complex=True)
-        if fes.ndof > 450000:
-            raise ValueError('自由度が450,000を超えました。メッシュを粗くしてください。')
+        from .resources import check_mesh_memory
+        self.memory_policy = check_mesh_memory(fes.ndof, cfg, progress)
         self.u, self.v = u, v = fes.TnT()
         with ng.TaskManager():
             self.a = ng.BilinearForm(ng.curl(u)*ng.curl(v)*ng.dx).Assemble()
@@ -162,6 +162,8 @@ class MaxwellSystem:
 
     def inverse(self, k, losses=False):
         """Native sparse factor plus an exact small Woodbury TEM correction."""
+        from .resources import check_mesh_memory
+        self.memory_policy = check_mesh_memory(self.fes.ndof, self.cfg)
         ng, u, v = self.ng, self.u, self.v
         form = ng.BilinearForm(ng.curl(u)*ng.curl(v)*ng.dx-k*k*self.eps*u*v*ng.dx, symmetric=True)
         for port, region, _ in self.local:
@@ -311,7 +313,11 @@ def spectrum_samples(system,cfg,modes,progress):
     rows=[]
     for i,frequency in enumerate(frequencies):
         progress('周波数応答を直接計算中 %d/%d'%(i+1,len(frequencies)))
-        rows.append(system.driven(frequency,driven))
+        row=system.driven(frequency,driven)
+        # The plot needs scalar responses only; retaining every FEM field
+        # would grow memory with the number of sweep frequencies.
+        row.pop('vector',None)
+        rows.append(row)
     scattering=np.asarray([row['scattering'] for row in rows])
     reflection=scattering[:,driven]
     return {'available':True,'frequencies_ghz':frequencies,'s11_real':reflection.real.tolist(),
@@ -332,7 +338,7 @@ def solve_advanced(domain,geometry,cfg,output_dir=None,progress=print,geometry_s
     from .surface import surface_integrals
     from .fields import export_field_slices
     start=time.perf_counter()
-    progress('アンテナと誘電体を含むメッシュ・Maxwell行列を生成中')
+    progress('選択した解析領域のメッシュ・Maxwell行列を生成中')
     system=MaxwellSystem(domain,geometry,cfg,progress)
     stamp=time.perf_counter()
     pairs,search=search_modes(system,cfg,progress)
@@ -459,7 +465,7 @@ def solve_advanced(domain,geometry,cfg,output_dir=None,progress=print,geometry_s
         warnings.append('一覧には給電部に集中した極・強く減衰する極も含まれます。最低モードの探索範囲は空洞と同軸全体であり、空洞内の鋭い共振だけではありません。分類は電気エネルギー分布とQの目安です。')
     if cfg.loss_model=='tls_qres':warnings.append('QresとTLS係数は入力した実測由来パラメータです。材質からの第一原理予測ではありません。')
     result={'solver':'NGSolve','solver_version':ng.__version__,'schema_version':2,'config':cfg.model_dump(),
-            'geometry':geometry,'modes':modes,'mode_search':search,
+            'geometry':geometry,'modes':modes,'mode_search':search,'memory_policy':system.memory_policy,
             'analysis_mode':cfg.analysis_mode,
             'spectrum_policy':'disabled by all_openings_qc; Qc uses stored energy and outgoing power only' if cfg.analysis_mode=='all_openings_qc' else 'optional driven S11',
             'external_boundary_assignments':system.external_port_data+system.port_data,'mesh':{'elements':system.mesh.ne,'dofs':system.n,

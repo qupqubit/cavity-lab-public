@@ -90,8 +90,8 @@ def solve(path, config, output_dir=None, progress=print, domain_override=None, g
     progress("Maxwell行列を組み立て中")
     stamp = time.perf_counter()
     fes = ng.HCurl(mesh, order=cfg.order, dirichlet="|".join(wall_names), complex=bool(cfg.ports))
-    if fes.ndof > 450000:
-        raise ValueError("自由度が450,000を超えました。maxhを大きくするか次数を下げてください。")
+    from .resources import check_mesh_memory
+    resource_policy = check_mesh_memory(fes.ndof, cfg, progress)
     u, v = fes.TnT()
     with ng.TaskManager():
         a = ng.BilinearForm(ng.curl(u) * ng.curl(v) * ng.dx).Assemble()
@@ -149,6 +149,7 @@ def solve(path, config, output_dir=None, progress=print, domain_override=None, g
         return free_solution(projection_input)
 
     port_matrices = []
+    resource_policy = check_mesh_memory(fes.ndof, cfg)
     if not cfg.ports:
         shifted = ng.BilinearForm(ng.curl(u)*ng.curl(v)*ng.dx - target**2*cfg.bulk_epsr*u*v*ng.dx,
                                  symmetric=True).Assemble()
@@ -293,7 +294,7 @@ def solve(path, config, output_dir=None, progress=print, domain_override=None, g
         if cfg.temperature_k >= 1.2:
             warnings.append("TLSモデルの高温での適用性を確認してください。準粒子損失の温度依存性は計算していません。")
     result = {"solver": "NGSolve", "solver_version": ng.__version__, "schema_version": 1,
-              "config": cfg.model_dump(), "geometry": geometry, "modes": modes,
+              "config": cfg.model_dump(), "geometry": geometry, "modes": modes, "memory_policy": resource_policy,
               "analysis_mode":cfg.analysis_mode,"external_boundary_assignments":geometry.get("external_ports",[]),
               "mesh": {"elements": mesh.ne, "dofs": len(free), "total_dofs": fes.ndof,
                        "maxh_mm": cfg.maxh_mm, "order": cfg.order, "geometry_order": cfg.order+1},

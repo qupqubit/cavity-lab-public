@@ -10,13 +10,16 @@ NGSolve/Netgen/OCCT native libraries, or downloaded wheels. The launchers instal
 separate PyPI distributions into a local environment. Those distributions retain
 their own license terms; installing them does not change those terms.
 
-The inventory below was checked against installed distribution metadata on
-**2026-11-11**, using the tested **macOS arm64 / Python 3.9** runtime environment.
-That environment contained **20 runtime distributions**, plus pip 22.0.4 and
-setuptools 60.10.0 as environment tooling (22 distributions total). A separate
-development environment supplied the **9 optional development/test** entries
-also present in `requirements-tested.txt`. Thus 29 dependency distributions are
-documented below; the normal launcher does not install all 29.
+The initial inventory was checked against installed distribution metadata on
+**2026-11-11**, using the **macOS arm64 / Python 3.9** runtime environment before
+memory monitoring was added. That historical snapshot contained **20 runtime
+distributions**, plus pip 22.0.4 and setuptools 60.10.0 as environment tooling
+(22 distributions total). **psutil 7.2.2** was subsequently installed and inspected
+in a separate macOS arm64 / Python 3.9 test environment on the same date and is
+now an additional runtime requirement; the original snapshot counts are retained
+in the inventory. The current documented set is **21 runtime distributions**
+plus **9 optional development/test distributions**, or **30 dependencies**.
+The normal launcher does not install all 30.
 
 The files linked below preserve the upstream license and attribution text from
 those distributions, without changing their terms. The machine-readable
@@ -62,6 +65,7 @@ snapshot, not a claim that all OS/Python combinations resolve to an identical se
 | [netgen_occt](https://pypi.org/project/netgen_occt/7.8.1/) | 7.8.1 | LGPL 2.1 with Open CASCADE exception 1.0 | [netgen-occt-7.8.1-LICENSE_LGPL_21.txt](LICENSES/netgen-occt-7.8.1-LICENSE_LGPL_21.txt) |
 | [ngsolve](https://pypi.org/project/ngsolve/6.2.2506/) | 6.2.2506 | LGPL 2.1 | [ngsolve-6.2.2506-LICENSE](LICENSES/ngsolve-6.2.2506-LICENSE) |
 | [numpy](https://pypi.org/project/numpy/2.0.2/) | 2.0.2 | BSD-3-Clause plus bundled-component notices | [numpy-2.0.2-LICENSE.txt](LICENSES/numpy-2.0.2-LICENSE.txt) |
+| [psutil](https://pypi.org/project/psutil/7.2.2/) | 7.2.2 | BSD-3-Clause | [psutil-7.2.2-LICENSE](LICENSES/psutil-7.2.2-LICENSE) |
 | [pydantic](https://pypi.org/project/pydantic/2.13.5/) | 2.13.5 | MIT | [pydantic-2.13.5-LICENSE](LICENSES/pydantic-2.13.5-LICENSE) |
 | [pydantic_core](https://pypi.org/project/pydantic_core/2.46.5/) | 2.46.5 | MIT | [pydantic-core-2.46.5-LICENSE](LICENSES/pydantic-core-2.46.5-LICENSE) |
 | [python-multipart](https://pypi.org/project/python-multipart/0.0.20/) | 0.0.20 | Apache-2.0 | [python-multipart-0.0.20-LICENSE.txt](LICENSES/python-multipart-0.0.20-LICENSE.txt) |
@@ -70,6 +74,12 @@ snapshot, not a claim that all OS/Python combinations resolve to an identical se
 | [typing_extensions](https://pypi.org/project/typing_extensions/4.16.0/) | 4.16.0 | PSF-2.0 and historical Python notices | [typing-extensions-4.16.0-LICENSE](LICENSES/typing-extensions-4.16.0-LICENSE) |
 | [typing-inspection](https://pypi.org/project/typing-inspection/0.4.2/) | 0.4.2 | MIT | [typing-inspection-0.4.2-LICENSE](LICENSES/typing-inspection-0.4.2-LICENSE) |
 | [uvicorn](https://pypi.org/project/uvicorn/0.39.0/) | 0.39.0 | BSD-3-Clause | [uvicorn-0.39.0-LICENSE.md](LICENSES/uvicorn-0.39.0-LICENSE.md) |
+
+The [official psutil 7.2.2 metadata](https://pypi.org/pypi/psutil/7.2.2/json)
+provides stable-ABI wheels for macOS arm64, macOS x86_64, and Windows amd64 that
+cover CPython 3.9–3.12. The inspected macOS wheel successfully reported available
+RAM and the current process's resident memory. Windows wheel compatibility was
+checked from package metadata; this does not claim a Windows execution test.
 
 ## Optional development and test dependencies
 
@@ -88,8 +98,8 @@ snapshot, not a claim that all OS/Python combinations resolve to an identical se
 ## Platform and installation tooling
 
 On Windows, Click conditionally requires **Colorama** (BSD-3-Clause). It was not
-installed in the audited macOS runtime and is not counted among its 20 runtime
-distributions. The [Colorama 0.4.6 upstream notice](LICENSES/colorama-0.4.6-LICENSE.txt)
+installed in the audited macOS runtime and is not counted among the 21
+documented runtime entries. The [Colorama 0.4.6 upstream notice](LICENSES/colorama-0.4.6-LICENSE.txt)
 is included as a reference, with [upstream source](https://github.com/tartley/colorama/tree/0.4.6).
 The actual resolved version and its installed notice should be checked when
 building a Windows distribution. `exceptiongroup` is conditional on the Python

@@ -15,11 +15,12 @@
         "name": "setuptools",
         "version": "60.10.0"
       }
-    ]
+    ],
+    "historical_note": "Original environment snapshot before psutil was added; counts retained without implying that this original environment was modified."
   },
   "optional_development_test_distributions": 9,
-  "dependency_distribution_count_documented": 29,
-  "scope": "Unmodified license/notice files copied from installed distribution metadata. No dependency implementations, native libraries, wheels, or Python interpreter are bundled. This inventory describes the inspected environment, not every possible platform/resolver result.",
+  "dependency_distribution_count_documented": 30,
+  "scope": "Unmodified license/notice files copied from installed distribution metadata, covering the original runtime snapshot plus explicitly documented later additions and optional test dependencies. No dependency implementations, native libraries, wheels, or Python interpreter are bundled. OS/Python/resolver results can differ.",
   "conditional_platform_dependencies": [
     {
       "name": "colorama",
@@ -261,6 +262,24 @@
       ]
     },
     {
+      "name": "psutil",
+      "version": "7.2.2",
+      "group": "runtime",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/psutil/7.2.2/",
+      "project_urls": [
+        "Homepage, https://github.com/giampaolo/psutil"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/psutil-7.2.2-LICENSE",
+          "installed_metadata_path": "psutil-7.2.2.dist-info/LICENSE",
+          "sha256": "b89c063b3786e28e0c0a38f1931db61fed35e69dd2a2966fbecffee0f46c8d10"
+        }
+      ],
+      "inspection_note": "Added after the initial runtime snapshot; installed and checked in an isolated macOS arm64 / Python3.9 test environment."
+    },
+    {
       "name": "pydantic",
       "version": "2.13.5",
       "group": "runtime",
@@ -363,6 +382,26 @@
       ]
     },
     {
+      "name": "typing-inspection",
+      "version": "0.4.2",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/typing-inspection/0.4.2/",
+      "project_urls": [
+        "Homepage, https://github.com/pydantic/typing-inspection",
+        "Documentation, https://pydantic.github.io/typing-inspection/dev/",
+        "Source, https://github.com/pydantic/typing-inspection",
+        "Changelog, https://github.com/pydantic/typing-inspection/blob/main/HISTORY.md"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/typing-inspection-0.4.2-LICENSE",
+          "installed_metadata_path": "typing_inspection-0.4.2.dist-info/licenses/LICENSE",
+          "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3"
+        }
+      ]
+    },
+    {
       "name": "typing_extensions",
       "version": "4.16.0",
       "group": "runtime",
@@ -381,26 +420,6 @@
           "file": "LICENSES/typing-extensions-4.16.0-LICENSE",
           "installed_metadata_path": "typing_extensions-4.16.0.dist-info/licenses/LICENSE",
           "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
-        }
-      ]
-    },
-    {
-      "name": "typing-inspection",
-      "version": "0.4.2",
-      "group": "runtime",
-      "license_summary": "MIT",
-      "package_url": "https://pypi.org/project/typing-inspection/0.4.2/",
-      "project_urls": [
-        "Homepage, https://github.com/pydantic/typing-inspection",
-        "Documentation, https://pydantic.github.io/typing-inspection/dev/",
-        "Source, https://github.com/pydantic/typing-inspection",
-        "Changelog, https://github.com/pydantic/typing-inspection/blob/main/HISTORY.md"
-      ],
-      "license_files": [
-        {
-          "file": "LICENSES/typing-inspection-0.4.2-LICENSE",
-          "installed_metadata_path": "typing_inspection-0.4.2.dist-info/licenses/LICENSE",
-          "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3"
         }
       ]
     },
@@ -610,6 +629,66 @@
           "sha256": "b80816b0d530b8accb4c2211783790984a6e3b61922c2b5ee92f3372ab2742fe"
         }
       ]
+    }
+  ],
+  "documented_runtime_distributions": 21,
+  "runtime_additions": [
+    {
+      "name": "psutil",
+      "version": "7.2.2",
+      "inspection_date": "2026-11-11",
+      "test_environment": {
+        "python": "3.9",
+        "os": "macOS",
+        "architecture": "arm64"
+      },
+      "verified_functions": [
+        "import",
+        "virtual_memory().available",
+        "Process().memory_info().rss"
+      ],
+      "runtime_requires_dist": [],
+      "official_wheel_metadata": {
+        "source": "https://pypi.org/pypi/psutil/7.2.2/json",
+        "version": "7.2.2",
+        "requires_python": ">=3.6",
+        "license": "BSD-3-Clause",
+        "wheels": [
+          {
+            "filename": "psutil-7.2.2-cp36-abi3-macosx_10_9_x86_64.whl",
+            "python": [
+              "3.9",
+              "3.10",
+              "3.11",
+              "3.12"
+            ],
+            "requires_python": ">=3.6",
+            "sha256": "ed0cace939114f62738d808fdcecd4c869222507e266e574799e9c0faa17d486"
+          },
+          {
+            "filename": "psutil-7.2.2-cp36-abi3-macosx_11_0_arm64.whl",
+            "python": [
+              "3.9",
+              "3.10",
+              "3.11",
+              "3.12"
+            ],
+            "requires_python": ">=3.6",
+            "sha256": "1a7b04c10f32cc88ab39cbf606e117fd74721c831c98a27dc04578deb0c16979"
+          },
+          {
+            "filename": "psutil-7.2.2-cp37-abi3-win_amd64.whl",
+            "python": [
+              "3.9",
+              "3.10",
+              "3.11",
+              "3.12"
+            ],
+            "requires_python": ">=3.6",
+            "sha256": "eb7e81434c8d223ec4a219b5fc1c47d0417b12be7ea866e24fb5ad6e84b3d988"
+          }
+        ]
+      }
     }
   ]
 }

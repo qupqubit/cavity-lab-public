@@ -22,8 +22,8 @@ SUPPORTED = ((3, 9), (3, 10), (3, 11), (3, 12))
 PYTHON_URL = 'https://www.python.org/downloads/'
 VERSION_PROBE = "import json,sys;print(json.dumps({'version':list(sys.version_info[:3]),'executable':sys.executable}))"
 IMPORT_PROBE = """import json, importlib.metadata as metadata
-import ngsolve, netgen.occ, numpy, scipy, fastapi, uvicorn, multipart
-print(json.dumps({name:metadata.version(name) for name in ('ngsolve','numpy','scipy','fastapi','uvicorn','python-multipart')}))
+import ngsolve, netgen.occ, numpy, scipy, fastapi, uvicorn, multipart, psutil
+print(json.dumps({name:metadata.version(name) for name in ('ngsolve','numpy','scipy','fastapi','uvicorn','python-multipart','psutil')}))
 """
 
 

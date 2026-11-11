@@ -19,6 +19,7 @@ from .geometry import inspect_step, load_domain, preview
 from .antennas import build_antennas
 from . import __version__
 from .estimates import make_plan, estimate, read_json, write_json
+from .resources import memory_policy, runtime_memory_status
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = Path(os.environ.get("CAVITY_FEM_DATA", str(ROOT / "data"))).resolve()
@@ -108,14 +109,64 @@ def job_estimate(folder, state):
     return estimate(plan, state, read_json(folder/"progress.json", {}), queue_wait=queued_wait)
 
 
+def stop_worker(process):
+    """Stop/reap only the captured child; concurrent cancellation may exit it."""
+    if process is None:
+        return None
+    try:
+        if process.poll() is None:
+            process.kill()
+    except ProcessLookupError:
+        pass  # It exited after poll(), possibly through the cancel endpoint.
+    try:
+        return process.wait()
+    except (ChildProcessError, ProcessLookupError):
+        return process.returncode  # Another waiter already reaped this child.
+
+
+def wait_for_worker(process, folder, policy, timeout=1800):
+    """Monitor only this job's child; cancellation and terminal state remain atomic."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            return process.wait(timeout=.5)
+        except subprocess.TimeoutExpired:
+            pass
+        if time.monotonic() >= deadline:
+            stop_worker(process)
+            raise RuntimeError("30分の上限を超えました。メッシュを粗くして再試行してください。")
+        live = runtime_memory_status(process.pid, policy['budget_bytes'], policy['reserve_bytes'])
+        with state_lock:
+            previous = read_json(folder/'state.json', {})
+            running = previous.get('status') == 'running'
+            if running:
+                save_state(folder, memory={**policy, **live})
+        if not running:
+            # A cancellation need not wait for a native routine to react to
+            # terminate(). Its terminal state is preserved by run_worker().
+            return stop_worker(process)
+        if live.get('violated'):
+            # Stop our worker immediately instead of waiting for a native allocation.
+            stop_worker(process)
+            raise RuntimeError(live.get('reason') or "メモリの余裕を確保できないため計算を停止しました。")
+
+
 def run_worker(folder, source):
+    process = None
     with state_lock:
         if json.loads((folder / "state.json").read_text())["status"] != "queued":
             return
         save_state(folder, status="running", stage="計算を開始しています", started_at=time.time())
     try:
+        policy = memory_policy(read_json(folder/'config.json', {}))
+        save_state(folder, memory=policy)
+        if policy['status'] != 'ok':
+            if not policy.get('detected'):
+                raise RuntimeError("このPCのメモリ情報を取得できないため、計算を開始できません。起動ファイルを開き直して監視機能の導入を確認してください。")
+            raise RuntimeError("計算用の空きメモリが不足しています。他のアプリや計算を終了して再試行してください。メッシュ設定欄にこのPCのメモリ量を表示しています。")
         with (folder / "solver.log").open("w") as log:
             env = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="2", PYTHONUNBUFFERED="1", PYTHONUTF8="1")
+            env['CAVITY_FEM_MEMORY_BUDGET_BYTES'] = str(policy['budget_bytes'])
             # Cancellation either prevents spawning or sees the registered
             # child; it cannot fall into a gap between Popen and registration.
             with state_lock:
@@ -125,17 +176,15 @@ def run_worker(folder, source):
                                             "--config", str(folder/"config.json"), "--output", str(folder)],
                                            cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
                 processes[folder.name] = process
-            try:
-                code = process.wait(timeout=1800)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
-                raise RuntimeError("30分の上限を超えました。メッシュを粗くして再試行してください。")
+            code = wait_for_worker(process, folder, policy)
         with state_lock:
             previous = json.loads((folder / "state.json").read_text())
             if previous["status"] != "running":
                 return
             if code != 0 or not (folder / "result.json").is_file():
+                failure = read_json(folder/'error.json', {})
+                if failure.get('kind') == 'memory_limit' and isinstance(failure.get('message'), str):
+                    raise RuntimeError(failure['message'])
                 raise RuntimeError((folder/"solver.log").read_text(errors="replace")[-3500:])
             save_state(folder, status="completed", stage="計算が完了しました", finished_at=time.time())
     except Exception as exc:
@@ -143,8 +192,14 @@ def run_worker(folder, source):
             if json.loads((folder / "state.json").read_text())["status"] == "running":
                 save_state(folder, status="failed", error=str(exc), stage="計算に失敗しました", finished_at=time.time())
     finally:
-        with state_lock:
-            processes.pop(folder.name, None)
+        # Watchdog/state-file errors must not orphan a live FEM process while
+        # the single-worker executor advances to the next queued job.
+        try:
+            stop_worker(process)
+        finally:
+            with state_lock:
+                if processes.get(folder.name) is process:
+                    processes.pop(folder.name, None)
 
 
 @app.get("/api/health")
@@ -161,6 +216,7 @@ def info():
     import ngsolve
     return {"solver": "NGSolve", "version": ngsolve.__version__, "example_available": True,
             "local_only": True, "app_version": __version__,
+            "memory": memory_policy(),
             "sample": {"name": "Circular vacuum cavity", "geometry_mode": "vacuum_solid",
                        "radius_mm": 15, "height_mm": 20,
                        "provenance": "Generated from an analytic cylinder; no supplied CAD"}}
@@ -176,7 +232,7 @@ def estimate_analysis(config: SolveConfig):
         if state.get("status") in ("queued", "running"):
             old_plan = read_json(path.parent/"estimate.json") or make_plan(state.get("config", {}))
             wait += estimate(old_plan, state, read_json(path.parent/"progress.json", {}))["remaining_s"]
-    return {"estimate": estimate(plan, queue_wait=wait)}
+    return {"estimate": estimate(plan, queue_wait=wait), "memory": memory_policy(config)}
 
 
 def import_geometry(content, filename, mode="vacuum_solid"):
