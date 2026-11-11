@@ -1,2 +1,2 @@
 """Local Maxwell FEM workbench using Netgen/NGSolve."""
-__version__ = "0.1.2"
+__version__ = "0.1.3"

@@ -344,104 +344,106 @@ def solve_advanced(domain,geometry,cfg,output_dir=None,progress=print,geometry_s
     pairs,search=search_modes(system,cfg,progress)
     solve_s=time.perf_counter()-stamp
     modes=[];stamp=time.perf_counter()
-    progress('壁面損失・ポート損失・participationを積分中')
-    for index,(k,vector) in enumerate(pairs,1):
-        frequency=k.real*C0/(2*math.pi*L0); omega=2*math.pi*frequency
-        field=system.grid_function(vector)
-        h_scale=1/(abs(k)*C0*MU0)
-        weighted_e=float(np.vdot(vector,system.M@vector).real)
-        curl2=float(np.vdot(vector,system.K@vector).real)
-        ue=.25*EPS0*weighted_e*L0**3
-        um=.25*MU0*curl2*h_scale**2*L0**3; energy=ue+um
-        e2cf=(field*ng.Conj(field)).real
-        e2=float(ng.Integrate(e2cf,system.mesh,order=2*cfg.order+4))
-        material_p={name:float(ng.Integrate(value['epsr']*e2cf,system.mesh,
-                    definedon=system.mesh.Materials(name),order=2*cfg.order+4))/weighted_e
-                    for name,value in system.materials.items()}
-        material_sum=sum(material_p.values())
-        material_p={name:value/material_sum for name,value in material_p.items()}
-        curl_field=ng.curl(field)
-        curl_density=(curl_field*ng.Conj(curl_field)).real
-        magnetic_weights={name:float(ng.Integrate(curl_density,system.mesh,
-                           definedon=system.mesh.Materials(name),order=2*cfg.order+4))
-                          for name in system.materials}
-        magnetic_sum=sum(magnetic_weights.values())
-        magnetic_p={name:value/magnetic_sum for name,value in magnetic_weights.items()}
-        cavity_ue=ue*material_p.get('bulk',0.0)
-        cavity_um=um*magnetic_p.get('bulk',0.0)
-        cavity_energy=cavity_ue+cavity_um
-        faces=surface_integrals(system.mesh,field,order=2*cfg.order+4)
-        # All generated antenna metals are ideal PEC. The assigned Rs and oxide
-        # model apply only to original cavity metal surfaces.
-        lossy_faces=system.oxide_faces if system.port_data else system.wall_faces
-        wall_h2=sum(f['curl_t2_mm2'] for f in faces if f['id'] in lossy_faces)*h_scale**2*L0**2
-        geometry_factor=omega*energy/(.5*wall_h2) if wall_h2>0 else None
-        se=sum(f['e_normal2_mm2'] for f in faces if f['id'] in system.oxide_faces)/e2/L0
-        normal=ng.specialcf.normal(3)
-        en=ng.BoundaryFromVolumeCF(field)*normal
-        weighted_normal=ng.BoundaryFromVolumeCF(system.eps**2)*(en*ng.Conj(en)).real
-        p_regions=ng.Integrate(weighted_normal,system.mesh,ng.BND,order=2*cfg.order+4,region_wise=True)
-        p_faces={}
-        for name,value in zip(system.mesh.GetBoundaries(),p_regions):
-            face_id=int(name.split('_')[-1])
-            if face_id in system.oxide_faces:
-                p_faces[face_id]=p_faces.get(face_id,0)+max(0,float(value))*cfg.oxide_thickness_nm*1e-6/cfg.oxide_epsr/weighted_e
-        poxide=sum(p_faces.values())
-        ports=[]
-        for port,alpha in zip(system.port_data,system.B.T@vector):
-            power=.5*port['wave_admittance_s']*abs(alpha)**2*L0**2
-            ports.append({'name':port['name'],'faces':port['faces'],'source_faces':[port['source_face']] if port.get('source_face') else [],
-                          'kind':'coax_tem','qc_total_energy':omega*energy/power if power>1e-30 else None,
-                          'qc_cavity':omega*cavity_energy/power if power>1e-30 and cavity_energy>0 else None,
-                          'power_w_normalized':float(power),'impedance_ohm':port['characteristic_impedance_ohm'],
-                          'tem_normalization_integral':port['modal_norm'],'te11_cutoff_ghz':port['te11_cutoff_ghz']})
-        for port,_,matrix in system.local:
-            power=.5/port.impedance_ohm*float(np.vdot(vector,matrix@vector).real)*L0**2
-            metadata=next(item for item in system.external_port_data if item['name']==port.name)
-            ports.append({'name':port.name,'faces':port.faces,'source_faces':metadata.get('source_faces',port.faces),
-                          'kind':port.kind,'qc_total_energy':omega*energy/power if power>1e-30 else None,
-                          'qc_cavity':omega*cavity_energy/power if power>1e-30 and cavity_energy>0 else None,
-                          'power_w_normalized':power,'impedance_ohm':port.impedance_ohm,
-                          'radiation_epsr':port.radiation_epsr if port.kind=='radiation' else None,
-                          'boundary_model':'first_order_local_outgoing_impedance','pml':False})
-        for port in ports:
-            port['qc']=port['qc_cavity'] if cfg.analysis_mode=='all_openings_qc' else port['qc_total_energy']
-        outgoing_power=sum(port['power_w_normalized'] for port in ports)
-        q_external_cavity=omega*cavity_energy/outgoing_power if outgoing_power>1e-30 and cavity_energy>0 else None
-        q_external_total=omega*energy/outgoing_power if outgoing_power>1e-30 else None
-        effective_tand=sum(material_p[name]*value.get('tand',0) for name,value in system.materials.items())
-        budget=loss_budget(frequency,geometry_factor or float('inf'),poxide,cfg.model_copy(update={'bulk_tand':effective_tand}))
-        inverse_loaded=(1/budget['qi'] if budget['qi'] else 0)+sum(1/p['qc_total_energy'] for p in ports if p['qc_total_energy'])
-        external_q=abs(k.real/(2*k.imag)) if abs(k.imag)>1e-14 else None
-        cavity_fraction=material_p.get('bulk',0.0)
-        mode_class='feed_dominated' if cavity_fraction<.5 else 'strongly_damped' if external_q is not None and external_q<2 else 'cavity_like'
-        mode={'mode':index,'mode_class':mode_class,'cavity_electric_energy_fraction':cavity_fraction,
-              'classification_rule':'feed_dominated: bulk electric-energy fraction <0.5; otherwise strongly_damped: external Q<2; otherwise cavity_like. This is a diagnostic, not an exact mode identity.','frequency_ghz':frequency/1e9,'frequency_imag_ghz':k.imag*C0/(2*math.pi*L0*1e9),
-              **budget,'q_loaded':1/inverse_loaded if inverse_loaded>0 else None,
-              'q_ports_eigenvalue':external_q,
-              'q_external_cavity':q_external_cavity,'q_external_total_energy':q_external_total,
-              'inverse_q_external_cavity':sum(1/p['qc_cavity'] for p in ports if p['qc_cavity']),
-              'inverse_q_external_total_energy':sum(1/p['qc_total_energy'] for p in ports if p['qc_total_energy']),
-              'q_loaded_cavity':cavity_energy/energy/inverse_loaded if inverse_loaded>0 else None,
-              'q_loaded_energy_scope':'total modeled domain including feed',
-              'qc_energy_scope':'cavity (bulk material) excluding feed' if cfg.analysis_mode=='all_openings_qc' else 'total modeled domain including feed',
-              'cavity_energy_j_normalized':cavity_energy,'total_energy_j_normalized':energy,
-              'cavity_electric_energy_j_normalized':cavity_ue,'cavity_magnetic_energy_j_normalized':cavity_um,
-              'outgoing_power_w_normalized':outgoing_power,
-              'energy_normalization':'Arbitrary peak-phasor eigenmode amplitude with x^H M x=1 in native mm coordinates; energies and powers share this scale, and their Q ratios are amplitude-independent.',
-              'material_magnetic_participation':magnetic_p,
-              'geometry_factor_ohm':geometry_factor,'surface_electric_per_m':se,
-              'participation':{**material_p,'oxide':poxide},'material_participation':material_p,
-              'surface_participation':[{'face':f['id'],'p_oxide':p_faces.get(f['id'],0),
-                                        'is_port':f['id'] in system.port_faces,'is_internal':f['id'] not in system.wall_faces|system.port_faces} for f in faces],
-              'ports':ports,'residual':system.residual(k,vector),'energy_balance_relative':abs(ue-um)/energy,
-              'electric_energy_j_normalized':ue,'magnetic_energy_j_normalized':um}
-        if output_dir:
-            out=Path(output_dir);out.mkdir(parents=True,exist_ok=True)
-            ng.VTKOutput(ma=system.mesh,coefs=[field.real,field.imag,ng.Norm(field),ng.Norm(ng.curl(field))*h_scale],
-                         names=['E_real','E_imag','E_magnitude','H_magnitude'],filename=str(out/('mode_%02d'%index)),subdivision=0).Do()
-            mode['field_file']=export_field_slices(system.mesh,field,geometry,out,index,cfg.field_resolution)
-        modes.append(mode)
+    progress('壁面損失・ポート損失・participationを積分中（NGSolve最大%dスレッド）'%cfg.threads)
+    # Python bookkeeping remains serial; native NGSolve work can share threads.
+    with ng.TaskManager():
+        for index,(k,vector) in enumerate(pairs,1):
+            frequency=k.real*C0/(2*math.pi*L0); omega=2*math.pi*frequency
+            field=system.grid_function(vector)
+            h_scale=1/(abs(k)*C0*MU0)
+            weighted_e=float(np.vdot(vector,system.M@vector).real)
+            curl2=float(np.vdot(vector,system.K@vector).real)
+            ue=.25*EPS0*weighted_e*L0**3
+            um=.25*MU0*curl2*h_scale**2*L0**3; energy=ue+um
+            e2cf=(field*ng.Conj(field)).real
+            e2=float(ng.Integrate(e2cf,system.mesh,order=2*cfg.order+4))
+            material_p={name:float(ng.Integrate(value['epsr']*e2cf,system.mesh,
+                        definedon=system.mesh.Materials(name),order=2*cfg.order+4))/weighted_e
+                        for name,value in system.materials.items()}
+            material_sum=sum(material_p.values())
+            material_p={name:value/material_sum for name,value in material_p.items()}
+            curl_field=ng.curl(field)
+            curl_density=(curl_field*ng.Conj(curl_field)).real
+            magnetic_weights={name:float(ng.Integrate(curl_density,system.mesh,
+                               definedon=system.mesh.Materials(name),order=2*cfg.order+4))
+                              for name in system.materials}
+            magnetic_sum=sum(magnetic_weights.values())
+            magnetic_p={name:value/magnetic_sum for name,value in magnetic_weights.items()}
+            cavity_ue=ue*material_p.get('bulk',0.0)
+            cavity_um=um*magnetic_p.get('bulk',0.0)
+            cavity_energy=cavity_ue+cavity_um
+            faces=surface_integrals(system.mesh,field,order=2*cfg.order+4)
+            # All generated antenna metals are ideal PEC. The assigned Rs and oxide
+            # model apply only to original cavity metal surfaces.
+            lossy_faces=system.oxide_faces if system.port_data else system.wall_faces
+            wall_h2=sum(f['curl_t2_mm2'] for f in faces if f['id'] in lossy_faces)*h_scale**2*L0**2
+            geometry_factor=omega*energy/(.5*wall_h2) if wall_h2>0 else None
+            se=sum(f['e_normal2_mm2'] for f in faces if f['id'] in system.oxide_faces)/e2/L0
+            normal=ng.specialcf.normal(3)
+            en=ng.BoundaryFromVolumeCF(field)*normal
+            weighted_normal=ng.BoundaryFromVolumeCF(system.eps**2)*(en*ng.Conj(en)).real
+            p_regions=ng.Integrate(weighted_normal,system.mesh,ng.BND,order=2*cfg.order+4,region_wise=True)
+            p_faces={}
+            for name,value in zip(system.mesh.GetBoundaries(),p_regions):
+                face_id=int(name.split('_')[-1])
+                if face_id in system.oxide_faces:
+                    p_faces[face_id]=p_faces.get(face_id,0)+max(0,float(value))*cfg.oxide_thickness_nm*1e-6/cfg.oxide_epsr/weighted_e
+            poxide=sum(p_faces.values())
+            ports=[]
+            for port,alpha in zip(system.port_data,system.B.T@vector):
+                power=.5*port['wave_admittance_s']*abs(alpha)**2*L0**2
+                ports.append({'name':port['name'],'faces':port['faces'],'source_faces':[port['source_face']] if port.get('source_face') else [],
+                              'kind':'coax_tem','qc_total_energy':omega*energy/power if power>1e-30 else None,
+                              'qc_cavity':omega*cavity_energy/power if power>1e-30 and cavity_energy>0 else None,
+                              'power_w_normalized':float(power),'impedance_ohm':port['characteristic_impedance_ohm'],
+                              'tem_normalization_integral':port['modal_norm'],'te11_cutoff_ghz':port['te11_cutoff_ghz']})
+            for port,_,matrix in system.local:
+                power=.5/port.impedance_ohm*float(np.vdot(vector,matrix@vector).real)*L0**2
+                metadata=next(item for item in system.external_port_data if item['name']==port.name)
+                ports.append({'name':port.name,'faces':port.faces,'source_faces':metadata.get('source_faces',port.faces),
+                              'kind':port.kind,'qc_total_energy':omega*energy/power if power>1e-30 else None,
+                              'qc_cavity':omega*cavity_energy/power if power>1e-30 and cavity_energy>0 else None,
+                              'power_w_normalized':power,'impedance_ohm':port.impedance_ohm,
+                              'radiation_epsr':port.radiation_epsr if port.kind=='radiation' else None,
+                              'boundary_model':'first_order_local_outgoing_impedance','pml':False})
+            for port in ports:
+                port['qc']=port['qc_cavity'] if cfg.analysis_mode=='all_openings_qc' else port['qc_total_energy']
+            outgoing_power=sum(port['power_w_normalized'] for port in ports)
+            q_external_cavity=omega*cavity_energy/outgoing_power if outgoing_power>1e-30 and cavity_energy>0 else None
+            q_external_total=omega*energy/outgoing_power if outgoing_power>1e-30 else None
+            effective_tand=sum(material_p[name]*value.get('tand',0) for name,value in system.materials.items())
+            budget=loss_budget(frequency,geometry_factor or float('inf'),poxide,cfg.model_copy(update={'bulk_tand':effective_tand}))
+            inverse_loaded=(1/budget['qi'] if budget['qi'] else 0)+sum(1/p['qc_total_energy'] for p in ports if p['qc_total_energy'])
+            external_q=abs(k.real/(2*k.imag)) if abs(k.imag)>1e-14 else None
+            cavity_fraction=material_p.get('bulk',0.0)
+            mode_class='feed_dominated' if cavity_fraction<.5 else 'strongly_damped' if external_q is not None and external_q<2 else 'cavity_like'
+            mode={'mode':index,'mode_class':mode_class,'cavity_electric_energy_fraction':cavity_fraction,
+                  'classification_rule':'feed_dominated: bulk electric-energy fraction <0.5; otherwise strongly_damped: external Q<2; otherwise cavity_like. This is a diagnostic, not an exact mode identity.','frequency_ghz':frequency/1e9,'frequency_imag_ghz':k.imag*C0/(2*math.pi*L0*1e9),
+                  **budget,'q_loaded':1/inverse_loaded if inverse_loaded>0 else None,
+                  'q_ports_eigenvalue':external_q,
+                  'q_external_cavity':q_external_cavity,'q_external_total_energy':q_external_total,
+                  'inverse_q_external_cavity':sum(1/p['qc_cavity'] for p in ports if p['qc_cavity']),
+                  'inverse_q_external_total_energy':sum(1/p['qc_total_energy'] for p in ports if p['qc_total_energy']),
+                  'q_loaded_cavity':cavity_energy/energy/inverse_loaded if inverse_loaded>0 else None,
+                  'q_loaded_energy_scope':'total modeled domain including feed',
+                  'qc_energy_scope':'cavity (bulk material) excluding feed' if cfg.analysis_mode=='all_openings_qc' else 'total modeled domain including feed',
+                  'cavity_energy_j_normalized':cavity_energy,'total_energy_j_normalized':energy,
+                  'cavity_electric_energy_j_normalized':cavity_ue,'cavity_magnetic_energy_j_normalized':cavity_um,
+                  'outgoing_power_w_normalized':outgoing_power,
+                  'energy_normalization':'Arbitrary peak-phasor eigenmode amplitude with x^H M x=1 in native mm coordinates; energies and powers share this scale, and their Q ratios are amplitude-independent.',
+                  'material_magnetic_participation':magnetic_p,
+                  'geometry_factor_ohm':geometry_factor,'surface_electric_per_m':se,
+                  'participation':{**material_p,'oxide':poxide},'material_participation':material_p,
+                  'surface_participation':[{'face':f['id'],'p_oxide':p_faces.get(f['id'],0),
+                                            'is_port':f['id'] in system.port_faces,'is_internal':f['id'] not in system.wall_faces|system.port_faces} for f in faces],
+                  'ports':ports,'residual':system.residual(k,vector),'energy_balance_relative':abs(ue-um)/energy,
+                  'electric_energy_j_normalized':ue,'magnetic_energy_j_normalized':um}
+            if output_dir:
+                out=Path(output_dir);out.mkdir(parents=True,exist_ok=True)
+                ng.VTKOutput(ma=system.mesh,coefs=[field.real,field.imag,ng.Norm(field),ng.Norm(ng.curl(field))*h_scale],
+                             names=['E_real','E_imag','E_magnitude','H_magnitude'],filename=str(out/('mode_%02d'%index)),subdivision=0).Do()
+                mode['field_file']=export_field_slices(system.mesh,field,geometry,out,index,cfg.field_resolution)
+            modes.append(mode)
     post_s=time.perf_counter()-stamp
     spectrum=None;stamp=time.perf_counter()
     if cfg.spectrum_enabled and cfg.analysis_mode!='all_openings_qc':spectrum=spectrum_samples(system,cfg,modes,progress)
@@ -472,7 +474,12 @@ def solve_advanced(domain,geometry,cfg,output_dir=None,progress=print,geometry_s
             'total_dofs':system.fes.ndof,'maxh_mm':cfg.maxh_mm,'order':cfg.order,'geometry_order':cfg.order+1},
             'timings':{'geometry_s':geometry_s,'mesh_s':system.mesh_s,'assembly_s':system.assembly_s,'solve_s':solve_s,
                        'postprocess_s':post_s,'spectrum_s':spectrum_s,'total_s':time.perf_counter()-start+geometry_s},
-            'machine':{'platform':platform.platform(),'processor':platform.machine(),'threads':cfg.threads},'warnings':warnings}
+            'machine':{"platform": platform.platform(), "processor": platform.machine(), "threads": cfg.threads,
+                          "postprocess_parallelism": {
+                              "task_manager_enabled": True, "requested_threads": cfg.threads,
+                              "scope": "native_ngsolve_postprocessing", "python_loop_parallel": False,
+                              "field_sampling": "native_batch_with_scalar_fallback",
+                              "note": "TaskManager enables eligible native integration and field evaluation. Python bookkeeping, scalar fallback and VTK/JSON file output remain serial; requested threads do not guarantee speedup."}},'warnings':warnings}
     if spectrum is not None:result['spectrum']=spectrum
     if output_dir:Path(output_dir,'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2,allow_nan=False))
     return result

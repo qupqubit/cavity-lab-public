@@ -36,6 +36,7 @@
         <div class="field-grid"><label class="field">近傍探索の目標 <span class="unit">GHz</span><input id="target-ghz" type="number" value="8" min="0.001" max="1000" step="any" required></label><label class="field">モード数<input id="n-modes" type="number" value="6" min="1" max="12" step="1" required></label></div>
         <div class="field-grid"><label class="field">最大要素寸法 <span class="unit">mm</span><input id="maxh-mm" type="number" value="2" min="0.1" max="30" step="any" required></label><label class="field">要素次数<select id="order"><option value="1">1 次</option><option value="2" selected>2 次</option><option value="3">3 次</option></select></label></div>
         <label class="field">計算スレッド数<input id="threads" type="number" value="2" min="1" max="16" step="1" required></label>
+        <p class="help-note">損失・participationの積分など、並列化に対応する処理に使います。Pythonが1つ表示されていても内部で複数コアを使います。処理によっては1コアで動きます。</p>
         <p class="help-note">小さいメッシュと高い次数は精度と計算時間に影響します。収束を確かめてから結果を採用してください。</p>
         <div id="memory-panel" class="memory-panel" role="status" aria-live="polite">
           <h3>実行PCのメモリ</h3><p id="memory-status" class="memory-status">情報を確認中</p>

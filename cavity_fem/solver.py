@@ -209,78 +209,79 @@ def solve(path, config, output_dir=None, progress=print, domain_override=None, g
     candidates.sort(key=lambda item: abs(item[0].real - target))
     candidates = sorted(candidates[:cfg.n_modes], key=lambda item: item[0].real)
     solve_s = time.perf_counter() - stamp
-    progress("壁面損失・ポート損失・participationを積分中")
+    progress("壁面損失・ポート損失・participationを積分中（NGSolve最大%dスレッド）" % cfg.threads)
     stamp = time.perf_counter()
     modes = []
     # Full volume traces are needed: HCurl's default boundary value keeps only E_t.
     from .surface import surface_integrals
-    for mode_index, (k, vector) in enumerate(candidates):
-        frequency = k.real * C0 / (2 * math.pi * L0)
-        omega = 2 * math.pi * frequency
-        vector = vector / math.sqrt(float(np.vdot(vector, M @ vector).real))
-        g = ng.GridFunction(fes)
-        g.vec.FV().NumPy()[:] = 0
-        g.vec.FV().NumPy()[free] = vector if cfg.ports else vector.real
-        E2 = float(np.vdot(vector, M @ vector).real) / cfg.bulk_epsr
-        curlE = ng.curl(g)
-        curl2 = float(np.vdot(vector, K @ vector).real)
-        # H peak amplitude from Faraday's law; magnitude uses complex eigenfrequency.
-        h_scale = 1 / (abs(k) * C0 * MU0)
-        Ue = 0.25 * EPS0 * cfg.bulk_epsr * E2 * L0 ** 3
-        Um = 0.25 * MU0 * curl2 * h_scale ** 2 * L0 ** 3
-        U = Ue + Um
-        faces = surface_integrals(mesh, g, order=2*cfg.order+4)
-        wall_H2 = sum(f["curl_t2_mm2"] for f in faces if f["id"] not in port_faces) * h_scale ** 2 * L0 ** 2
-        G = omega * U / (0.5 * wall_H2) if wall_H2 > 0 else float("inf")
-        Se = sum(f["e_normal2_mm2"] for f in faces if f["id"] not in port_faces) / E2 / L0
-        # D_n continuity: oxide E_n = eps_bulk/eps_oxide * E_n,bulk.
-        p_oxide = cfg.oxide_thickness_nm * 1e-9 * cfg.bulk_epsr / cfg.oxide_epsr * Se
-        ports = []
-        for port, mat in zip(cfg.ports, port_matrices):
-            power = 0.5 / port.impedance_ohm * float(np.vdot(vector, mat @ vector).real) * L0 ** 2
-            ports.append({"name": port.name, "qc": omega * U / power if power > 1e-30 else None,
-                          "power_w_normalized": power, "faces": port.faces,
-                          "impedance_ohm": port.impedance_ohm, "kind": port.kind, "source_faces":port.faces,
-                          "qc_cavity":omega*U/power if power>1e-30 else None,
-                          "qc_total_energy":omega*U/power if power>1e-30 else None})
-        outgoing_power=sum(port["power_w_normalized"] for port in ports)
-        q_external=omega*U/outgoing_power if outgoing_power>1e-30 else None
-        budget = loss_budget(frequency, G, p_oxide, cfg)
-        inverse_loaded = (1 / budget["qi"] if budget["qi"] else 0) + sum(1 / p["qc"] for p in ports if p["qc"])
-        residual_vec = K @ vector - k*k*(M @ vector)
-        if cfg.ports:
-            residual_vec += 1j * k * (D @ vector)
-        residual = np.linalg.norm(residual_vec) / (np.linalg.norm(K @ vector) + abs(k)**2*np.linalg.norm(M @ vector))
-        if not np.isfinite(residual) or residual > 1e-6:
-            raise RuntimeError("固有対の残差が許容値を超えました。探索周波数またはメッシュを調整してください。")
-        modes.append({"mode": mode_index + 1, "frequency_ghz": frequency / 1e9,
-                      "frequency_imag_ghz": k.imag * C0 / (2*math.pi*L0*1e9),
-                      **budget, "q_loaded": 1/inverse_loaded if inverse_loaded > 0 else None,
-                      "q_ports_eigenvalue": abs(k.real / (2*k.imag)) if abs(k.imag) > 1e-14 else None,
-                      "q_external_cavity":q_external,"q_external_total_energy":q_external,
-                      "inverse_q_external_cavity":sum(1/p["qc"] for p in ports if p["qc"]),
-                      "inverse_q_external_total_energy":sum(1/p["qc"] for p in ports if p["qc"]),
-                      "cavity_energy_j_normalized":U,"total_energy_j_normalized":U,
-                      "cavity_electric_energy_j_normalized":Ue,"cavity_magnetic_energy_j_normalized":Um,
-                      "outgoing_power_w_normalized":outgoing_power,
-                      "qc_energy_scope":"total modeled domain; equal to cavity because no feed volume is present",
-                      "energy_normalization":"Arbitrary peak-phasor eigenmode amplitude with x^H M x=1 in native mm coordinates; energies and powers share this scale; Q is amplitude-independent.",
-                      "geometry_factor_ohm": G, "surface_electric_per_m": Se,
-                      "participation": {"bulk": 1.0, "oxide": p_oxide},
-                      "surface_participation": [{"face": f["id"], "p_oxide": 0.0 if f["id"] in port_faces else cfg.oxide_thickness_nm*1e-6 * cfg.bulk_epsr/cfg.oxide_epsr * f["e_normal2_mm2"] / E2,
-                                                   "is_port": f["id"] in port_faces} for f in faces],
-                      "ports": ports, "residual": float(residual),
-                      "energy_balance_relative": abs(Ue-Um)/U,
-                      "electric_energy_j_normalized": Ue, "magnetic_energy_j_normalized": Um})
-        if output_dir:
-            out = Path(output_dir)
-            out.mkdir(parents=True, exist_ok=True)
-            with ng.TaskManager():
+    # Keep native integration/output tasks active throughout postprocessing.
+    with ng.TaskManager():
+        for mode_index, (k, vector) in enumerate(candidates):
+            frequency = k.real * C0 / (2 * math.pi * L0)
+            omega = 2 * math.pi * frequency
+            vector = vector / math.sqrt(float(np.vdot(vector, M @ vector).real))
+            g = ng.GridFunction(fes)
+            g.vec.FV().NumPy()[:] = 0
+            g.vec.FV().NumPy()[free] = vector if cfg.ports else vector.real
+            E2 = float(np.vdot(vector, M @ vector).real) / cfg.bulk_epsr
+            curlE = ng.curl(g)
+            curl2 = float(np.vdot(vector, K @ vector).real)
+            # H peak amplitude from Faraday's law; magnitude uses complex eigenfrequency.
+            h_scale = 1 / (abs(k) * C0 * MU0)
+            Ue = 0.25 * EPS0 * cfg.bulk_epsr * E2 * L0 ** 3
+            Um = 0.25 * MU0 * curl2 * h_scale ** 2 * L0 ** 3
+            U = Ue + Um
+            faces = surface_integrals(mesh, g, order=2*cfg.order+4)
+            wall_H2 = sum(f["curl_t2_mm2"] for f in faces if f["id"] not in port_faces) * h_scale ** 2 * L0 ** 2
+            G = omega * U / (0.5 * wall_H2) if wall_H2 > 0 else float("inf")
+            Se = sum(f["e_normal2_mm2"] for f in faces if f["id"] not in port_faces) / E2 / L0
+            # D_n continuity: oxide E_n = eps_bulk/eps_oxide * E_n,bulk.
+            p_oxide = cfg.oxide_thickness_nm * 1e-9 * cfg.bulk_epsr / cfg.oxide_epsr * Se
+            ports = []
+            for port, mat in zip(cfg.ports, port_matrices):
+                power = 0.5 / port.impedance_ohm * float(np.vdot(vector, mat @ vector).real) * L0 ** 2
+                ports.append({"name": port.name, "qc": omega * U / power if power > 1e-30 else None,
+                              "power_w_normalized": power, "faces": port.faces,
+                              "impedance_ohm": port.impedance_ohm, "kind": port.kind, "source_faces":port.faces,
+                              "qc_cavity":omega*U/power if power>1e-30 else None,
+                              "qc_total_energy":omega*U/power if power>1e-30 else None})
+            outgoing_power=sum(port["power_w_normalized"] for port in ports)
+            q_external=omega*U/outgoing_power if outgoing_power>1e-30 else None
+            budget = loss_budget(frequency, G, p_oxide, cfg)
+            inverse_loaded = (1 / budget["qi"] if budget["qi"] else 0) + sum(1 / p["qc"] for p in ports if p["qc"])
+            residual_vec = K @ vector - k*k*(M @ vector)
+            if cfg.ports:
+                residual_vec += 1j * k * (D @ vector)
+            residual = np.linalg.norm(residual_vec) / (np.linalg.norm(K @ vector) + abs(k)**2*np.linalg.norm(M @ vector))
+            if not np.isfinite(residual) or residual > 1e-6:
+                raise RuntimeError("固有対の残差が許容値を超えました。探索周波数またはメッシュを調整してください。")
+            modes.append({"mode": mode_index + 1, "frequency_ghz": frequency / 1e9,
+                          "frequency_imag_ghz": k.imag * C0 / (2*math.pi*L0*1e9),
+                          **budget, "q_loaded": 1/inverse_loaded if inverse_loaded > 0 else None,
+                          "q_ports_eigenvalue": abs(k.real / (2*k.imag)) if abs(k.imag) > 1e-14 else None,
+                          "q_external_cavity":q_external,"q_external_total_energy":q_external,
+                          "inverse_q_external_cavity":sum(1/p["qc"] for p in ports if p["qc"]),
+                          "inverse_q_external_total_energy":sum(1/p["qc"] for p in ports if p["qc"]),
+                          "cavity_energy_j_normalized":U,"total_energy_j_normalized":U,
+                          "cavity_electric_energy_j_normalized":Ue,"cavity_magnetic_energy_j_normalized":Um,
+                          "outgoing_power_w_normalized":outgoing_power,
+                          "qc_energy_scope":"total modeled domain; equal to cavity because no feed volume is present",
+                          "energy_normalization":"Arbitrary peak-phasor eigenmode amplitude with x^H M x=1 in native mm coordinates; energies and powers share this scale; Q is amplitude-independent.",
+                          "geometry_factor_ohm": G, "surface_electric_per_m": Se,
+                          "participation": {"bulk": 1.0, "oxide": p_oxide},
+                          "surface_participation": [{"face": f["id"], "p_oxide": 0.0 if f["id"] in port_faces else cfg.oxide_thickness_nm*1e-6 * cfg.bulk_epsr/cfg.oxide_epsr * f["e_normal2_mm2"] / E2,
+                                                       "is_port": f["id"] in port_faces} for f in faces],
+                          "ports": ports, "residual": float(residual),
+                          "energy_balance_relative": abs(Ue-Um)/U,
+                          "electric_energy_j_normalized": Ue, "magnetic_energy_j_normalized": Um})
+            if output_dir:
+                out = Path(output_dir)
+                out.mkdir(parents=True, exist_ok=True)
                 ng.VTKOutput(ma=mesh, coefs=[g.real, g.imag, ng.Norm(g), ng.Norm(curlE)*h_scale],
                              names=["E_real", "E_imag", "E_magnitude", "H_magnitude"],
                              filename=str(out / ("mode_%02d" % (mode_index+1))), subdivision=0).Do()
-            from .fields import export_field_slices
-            modes[-1]["field_file"] = export_field_slices(mesh, g, geometry, out, mode_index+1, cfg.field_resolution)
+                from .fields import export_field_slices
+                modes[-1]["field_file"] = export_field_slices(mesh, g, geometry, out, mode_index+1, cfg.field_resolution)
     post_s = time.perf_counter() - stamp
     warnings = list(geometry.get("warnings", []))
     warnings += ["有限要素残差は離散化誤差ではありません。周波数・G・表面participationを別々にメッシュ収束確認してください。",
@@ -300,7 +301,12 @@ def solve(path, config, output_dir=None, progress=print, domain_override=None, g
                        "maxh_mm": cfg.maxh_mm, "order": cfg.order, "geometry_order": cfg.order+1},
               "timings": {"geometry_s": geometry_s, "mesh_s": mesh_s, "assembly_s": assembly_s,
                           "solve_s": solve_s, "postprocess_s": post_s, "total_s": time.perf_counter()-start},
-              "machine": {"platform": platform.platform(), "processor": platform.machine(), "threads": cfg.threads},
+              "machine": {"platform": platform.platform(), "processor": platform.machine(), "threads": cfg.threads,
+                          "postprocess_parallelism": {
+                              "task_manager_enabled": True, "requested_threads": cfg.threads,
+                              "scope": "native_ngsolve_postprocessing", "python_loop_parallel": False,
+                              "field_sampling": "native_batch_with_scalar_fallback",
+                              "note": "TaskManager enables eligible native integration and field evaluation. Python bookkeeping, scalar fallback and VTK/JSON file output remain serial; requested threads do not guarantee speedup."}},
               "warnings": warnings}
     if output_dir:
         Path(output_dir, "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
