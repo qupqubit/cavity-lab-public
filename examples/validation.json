@@ -1,0 +1,117 @@
+{
+  "sample": "cylinder-vacuum.step",
+  "solver": "NGSolve",
+  "solver_version": "6.2.2506",
+  "boundary_condition": "PEC on every exterior face",
+  "config": {
+    "geometry_id": null,
+    "geometry_mode": "vacuum_solid",
+    "solid_index": 0,
+    "maxh_mm": 4.0,
+    "order": 3,
+    "n_modes": 1,
+    "target_ghz": 8.0,
+    "threads": 1,
+    "rs_nohm": 10.0,
+    "bulk_epsr": 1.0,
+    "bulk_tand": 0,
+    "oxide_thickness_nm": 0.0,
+    "oxide_epsr": 1.0,
+    "oxide_tand": 0.0,
+    "loss_model": "none",
+    "temperature_k": 0.02,
+    "photon_number": 1,
+    "tls_nc": 1.0,
+    "tls_beta": 0.5,
+    "q_res": null,
+    "analysis_mode": "resonance",
+    "all_artificial_caps": false,
+    "ports": [],
+    "antennas": [],
+    "antenna_sweep": null,
+    "mode_search": "lowest",
+    "spectrum_enabled": false,
+    "spectrum_start_ghz": 0.1,
+    "spectrum_stop_ghz": 15.0,
+    "spectrum_points": 41,
+    "driven_port": null,
+    "field_resolution": 11
+  },
+  "reference": {
+    "mode": "TM010",
+    "frequency_ghz": 7.649501855680672,
+    "geometry_factor_ohm": 258.8487676185126,
+    "surface_electric_per_m": 100.0
+  },
+  "computed": {
+    "frequency_ghz": 7.649505612421081,
+    "geometry_factor_ohm": 258.86633904819433,
+    "surface_electric_per_m": 100.0024820985558,
+    "residual": 5.020353872493585e-14,
+    "energy_balance_relative": 2.2941169547864822e-15,
+    "qi": null,
+    "ports": []
+  },
+  "relative_errors": {
+    "frequency": 4.911091571191406e-07,
+    "geometry_factor": 6.788299532334285e-05,
+    "surface_electric": 2.482098555800505e-05
+  },
+  "field_export": {
+    "planes": 3,
+    "maximum_relative_e": 1.0,
+    "vtu_exists": true
+  },
+  "mesh": {
+    "elements": 867,
+    "dofs": 18292,
+    "total_dofs": 24648,
+    "maxh_mm": 4.0,
+    "order": 3,
+    "geometry_order": 4
+  },
+  "mode_search": {
+    "method": "gradient-deflated shift-invert Maxwell eigenproblem",
+    "selection": "lowest",
+    "shifts_ghz": [
+      0.1
+    ],
+    "shift_results": [
+      {
+        "shift_ghz": 0.1,
+        "positive_frequencies_ghz": [
+          7.6495056124210805,
+          9.511715436419632,
+          9.511719868658615,
+          10.709254142525788,
+          12.188395143471373,
+          12.188415208804068
+        ]
+      }
+    ],
+    "band_ghz": [
+      0.1,
+      15.0
+    ],
+    "distinct_modes_found": 6,
+    "requested_modes": 1,
+    "returned_modes": 1,
+    "claim": "lowest found in searched band",
+    "completeness_proven": false,
+    "note": "S11 invisibility does not exclude a dark eigenmode; mesh and search convergence remain necessary."
+  },
+  "timings_seconds": {
+    "geometry_s": 0.010606709000000047,
+    "mesh_s": 0.040152833000000054,
+    "assembly_s": 0.33015083300000003,
+    "solve_s": 4.408211833,
+    "postprocess_s": 0.3080948330000002,
+    "spectrum_s": 6.670000001207654e-07,
+    "total_s": 5.097428750000001
+  },
+  "limits": [
+    "This single mesh is an analytic smoke test, not a convergence study.",
+    "The lowest mode is found within the specified search band; completeness is not proved.",
+    "Qi is null for this lossless reference; finite Qi requires material loss inputs."
+  ]
+}

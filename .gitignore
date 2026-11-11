@@ -1,0 +1,15 @@
+.venv/
+.bootstrap/
+data/
+data-development/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+*.class
+*.class.status
+*.mph
+*.mphbin
+*.vtu
+*.vtk
+.DS_Store

@@ -1,0 +1,6 @@
+ngsolve==6.2.2506
+numpy==2.0.2
+scipy==1.13.1
+fastapi==0.128.8
+uvicorn==0.39.0
+python-multipart==0.0.20

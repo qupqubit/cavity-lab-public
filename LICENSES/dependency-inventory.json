@@ -1,0 +1,615 @@
+{
+  "audit_date": "2026-11-11",
+  "runtime_snapshot": {
+    "python": "3.9",
+    "os": "macOS",
+    "architecture": "arm64",
+    "installed_distributions_total": 22,
+    "runtime_distributions": 20,
+    "excluded_environment_tooling": [
+      {
+        "name": "pip",
+        "version": "22.0.4"
+      },
+      {
+        "name": "setuptools",
+        "version": "60.10.0"
+      }
+    ]
+  },
+  "optional_development_test_distributions": 9,
+  "dependency_distribution_count_documented": 29,
+  "scope": "Unmodified license/notice files copied from installed distribution metadata. No dependency implementations, native libraries, wheels, or Python interpreter are bundled. This inventory describes the inspected environment, not every possible platform/resolver result.",
+  "conditional_platform_dependencies": [
+    {
+      "name": "colorama",
+      "condition": "Windows, required by click",
+      "installed_in_audited_runtime": false,
+      "reference_version": "0.4.6",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/colorama/0.4.6/",
+      "license_file": "LICENSES/colorama-0.4.6-LICENSE.txt",
+      "source_url": "https://raw.githubusercontent.com/tartley/colorama/0.4.6/LICENSE.txt"
+    }
+  ],
+  "distributions": [
+    {
+      "name": "annotated-doc",
+      "version": "0.0.5",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/annotated-doc/0.0.5/",
+      "project_urls": [
+        "Homepage, https://github.com/fastapi/annotated-doc",
+        "Documentation, https://github.com/fastapi/annotated-doc",
+        "Repository, https://github.com/fastapi/annotated-doc",
+        "Issues, https://github.com/fastapi/annotated-doc/issues",
+        "Changelog, https://github.com/fastapi/annotated-doc/release-notes.md"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/annotated-doc-0.0.5-LICENSE",
+          "installed_metadata_path": "annotated_doc-0.0.5.dist-info/licenses/LICENSE",
+          "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf"
+        }
+      ]
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.7.0",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/annotated-types/0.7.0/",
+      "project_urls": [
+        "Homepage, https://github.com/annotated-types/annotated-types",
+        "Source, https://github.com/annotated-types/annotated-types",
+        "Changelog, https://github.com/annotated-types/annotated-types/releases"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/annotated-types-0.7.0-LICENSE",
+          "installed_metadata_path": "annotated_types-0.7.0.dist-info/licenses/LICENSE",
+          "sha256": "fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d"
+        }
+      ]
+    },
+    {
+      "name": "anyio",
+      "version": "4.12.1",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/anyio/4.12.1/",
+      "project_urls": [
+        "Documentation, https://anyio.readthedocs.io/en/latest/",
+        "Changelog, https://anyio.readthedocs.io/en/stable/versionhistory.html",
+        "Source code, https://github.com/agronholm/anyio",
+        "Issue tracker, https://github.com/agronholm/anyio/issues"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/anyio-4.12.1-LICENSE",
+          "installed_metadata_path": "anyio-4.12.1.dist-info/licenses/LICENSE",
+          "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0"
+        }
+      ]
+    },
+    {
+      "name": "click",
+      "version": "8.1.8",
+      "group": "runtime",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/click/8.1.8/",
+      "project_urls": [
+        "Changes, https://click.palletsprojects.com/changes/",
+        "Chat, https://discord.gg/pallets",
+        "Documentation, https://click.palletsprojects.com/",
+        "Donate, https://palletsprojects.com/donate",
+        "Source, https://github.com/pallets/click/"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/click-8.1.8-LICENSE.txt",
+          "installed_metadata_path": "click-8.1.8.dist-info/LICENSE.txt",
+          "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d"
+        }
+      ]
+    },
+    {
+      "name": "exceptiongroup",
+      "version": "1.3.1",
+      "group": "runtime",
+      "license_summary": "MIT and PSF-2.0",
+      "package_url": "https://pypi.org/project/exceptiongroup/1.3.1/",
+      "project_urls": [
+        "Changelog, https://github.com/agronholm/exceptiongroup/blob/main/CHANGES.rst",
+        "Issue Tracker, https://github.com/agronholm/exceptiongroup/issues",
+        "Source code, https://github.com/agronholm/exceptiongroup"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/exceptiongroup-1.3.1-LICENSE",
+          "installed_metadata_path": "exceptiongroup-1.3.1.dist-info/licenses/LICENSE",
+          "sha256": "6e5070d765031e0ad403a1cbf90ae6d19a0228f802e320b7acff460aa72ed47c"
+        }
+      ]
+    },
+    {
+      "name": "fastapi",
+      "version": "0.128.8",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/fastapi/0.128.8/",
+      "project_urls": [
+        "Homepage, https://github.com/fastapi/fastapi",
+        "Documentation, https://fastapi.tiangolo.com/",
+        "Repository, https://github.com/fastapi/fastapi",
+        "Issues, https://github.com/fastapi/fastapi/issues",
+        "Changelog, https://fastapi.tiangolo.com/release-notes/"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/fastapi-0.128.8-LICENSE",
+          "installed_metadata_path": "fastapi-0.128.8.dist-info/licenses/LICENSE",
+          "sha256": "4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e"
+        }
+      ]
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/h11/0.16.0/",
+      "project_urls": [],
+      "license_files": [
+        {
+          "file": "LICENSES/h11-0.16.0-LICENSE.txt",
+          "installed_metadata_path": "h11-0.16.0.dist-info/licenses/LICENSE.txt",
+          "sha256": "37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361"
+        }
+      ]
+    },
+    {
+      "name": "idna",
+      "version": "3.20",
+      "group": "runtime",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/idna/3.20/",
+      "project_urls": [
+        "Changelog, https://github.com/kjd/idna/blob/master/HISTORY.md",
+        "Issue tracker, https://github.com/kjd/idna/issues",
+        "Source, https://github.com/kjd/idna"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/idna-3.20-LICENSE.md",
+          "installed_metadata_path": "idna-3.20.dist-info/licenses/LICENSE.md",
+          "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04"
+        }
+      ]
+    },
+    {
+      "name": "netgen-mesher",
+      "version": "6.2.2506",
+      "group": "runtime",
+      "license_summary": "LGPL 2.1",
+      "package_url": "https://pypi.org/project/netgen-mesher/6.2.2506/",
+      "project_urls": [],
+      "license_files": [
+        {
+          "file": "LICENSES/netgen-mesher-6.2.2506-AUTHORS",
+          "installed_metadata_path": "netgen_mesher-6.2.2506.dist-info/AUTHORS",
+          "sha256": "b1d90f091e62f5c1e59ea6db105348b20c6404c0c5ed20d91db5235b511ac288"
+        },
+        {
+          "file": "LICENSES/netgen-mesher-6.2.2506-LICENSE",
+          "installed_metadata_path": "netgen_mesher-6.2.2506.dist-info/LICENSE",
+          "sha256": "a190dc9c8043755d90f8b0a75fa66b9e42d4af4c980bf5ddc633f0124db3cee7"
+        }
+      ]
+    },
+    {
+      "name": "netgen_occt",
+      "version": "7.8.1",
+      "group": "runtime",
+      "license_summary": "LGPL 2.1 with Open CASCADE exception 1.0",
+      "package_url": "https://pypi.org/project/netgen_occt/7.8.1/",
+      "project_urls": [],
+      "license_files": [
+        {
+          "file": "LICENSES/netgen-occt-7.8.1-LICENSE_LGPL_21.txt",
+          "installed_metadata_path": "netgen_occt-7.8.1.dist-info/licenses/LICENSE_LGPL_21.txt",
+          "sha256": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c"
+        }
+      ]
+    },
+    {
+      "name": "ngsolve",
+      "version": "6.2.2506",
+      "group": "runtime",
+      "license_summary": "LGPL 2.1",
+      "package_url": "https://pypi.org/project/ngsolve/6.2.2506/",
+      "project_urls": [],
+      "license_files": [
+        {
+          "file": "LICENSES/ngsolve-6.2.2506-LICENSE",
+          "installed_metadata_path": "ngsolve-6.2.2506.dist-info/LICENSE",
+          "sha256": "a190dc9c8043755d90f8b0a75fa66b9e42d4af4c980bf5ddc633f0124db3cee7"
+        }
+      ]
+    },
+    {
+      "name": "numpy",
+      "version": "2.0.2",
+      "group": "runtime",
+      "license_summary": "BSD-3-Clause plus bundled-component notices",
+      "package_url": "https://pypi.org/project/numpy/2.0.2/",
+      "project_urls": [
+        "Homepage, https://numpy.org",
+        "Documentation, https://numpy.org/doc/",
+        "Source, https://github.com/numpy/numpy",
+        "Download, https://pypi.org/project/numpy/#files",
+        "Tracker, https://github.com/numpy/numpy/issues",
+        "Release notes, https://numpy.org/doc/stable/release"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/numpy-2.0.2-LICENSE.txt",
+          "installed_metadata_path": "numpy-2.0.2.dist-info/LICENSE.txt",
+          "sha256": "279d8a786f5c0011fa62f57d09c9b724bc2391e0d907836a316309c7a3eb6cc4"
+        }
+      ]
+    },
+    {
+      "name": "pydantic",
+      "version": "2.13.5",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/pydantic/2.13.5/",
+      "project_urls": [
+        "Homepage, https://github.com/pydantic/pydantic",
+        "Documentation, https://docs.pydantic.dev",
+        "Funding, https://github.com/sponsors/samuelcolvin",
+        "Source, https://github.com/pydantic/pydantic",
+        "Changelog, https://docs.pydantic.dev/latest/changelog/"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/pydantic-2.13.5-LICENSE",
+          "installed_metadata_path": "pydantic-2.13.5.dist-info/licenses/LICENSE",
+          "sha256": "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3"
+        }
+      ]
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.46.5",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/pydantic_core/2.46.5/",
+      "project_urls": [
+        "Funding, https://github.com/sponsors/samuelcolvin",
+        "Homepage, https://github.com/pydantic",
+        "Source, https://github.com/pydantic/pydantic/tree/main/pydantic-core"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/pydantic-core-2.46.5-LICENSE",
+          "installed_metadata_path": "pydantic_core-2.46.5.dist-info/licenses/LICENSE",
+          "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a"
+        }
+      ]
+    },
+    {
+      "name": "python-multipart",
+      "version": "0.0.20",
+      "group": "runtime",
+      "license_summary": "Apache-2.0",
+      "package_url": "https://pypi.org/project/python-multipart/0.0.20/",
+      "project_urls": [
+        "Homepage, https://github.com/Kludex/python-multipart",
+        "Documentation, https://kludex.github.io/python-multipart/",
+        "Changelog, https://github.com/Kludex/python-multipart/blob/master/CHANGELOG.md",
+        "Source, https://github.com/Kludex/python-multipart"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/python-multipart-0.0.20-LICENSE.txt",
+          "installed_metadata_path": "python_multipart-0.0.20.dist-info/licenses/LICENSE.txt",
+          "sha256": "a8e833176cd617daf00b9d6d39fa15ca8edebc6d1643079cd2f4893c0c289be2"
+        }
+      ]
+    },
+    {
+      "name": "scipy",
+      "version": "1.13.1",
+      "group": "runtime",
+      "license_summary": "BSD-3-Clause plus bundled-component notices",
+      "package_url": "https://pypi.org/project/scipy/1.13.1/",
+      "project_urls": [
+        "Homepage, https://scipy.org/",
+        "Documentation, https://docs.scipy.org/doc/scipy/",
+        "Source, https://github.com/scipy/scipy",
+        "Download, https://github.com/scipy/scipy/releases",
+        "Tracker, https://github.com/scipy/scipy/issues"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/scipy-1.13.1-LICENSE.txt",
+          "installed_metadata_path": "scipy-1.13.1.dist-info/LICENSE.txt",
+          "sha256": "3b05dc069af17a3e112235cff907203272237bc345722cd1e50c192062ae050a"
+        }
+      ]
+    },
+    {
+      "name": "starlette",
+      "version": "0.49.3",
+      "group": "runtime",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/starlette/0.49.3/",
+      "project_urls": [
+        "Homepage, https://github.com/Kludex/starlette",
+        "Documentation, https://starlette.dev/",
+        "Changelog, https://starlette.dev/release-notes/",
+        "Funding, https://github.com/sponsors/Kludex",
+        "Source, https://github.com/Kludex/starlette"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/starlette-0.49.3-LICENSE.md",
+          "installed_metadata_path": "starlette-0.49.3.dist-info/licenses/LICENSE.md",
+          "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf"
+        }
+      ]
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "group": "runtime",
+      "license_summary": "PSF-2.0 and historical Python notices",
+      "package_url": "https://pypi.org/project/typing_extensions/4.16.0/",
+      "project_urls": [
+        "Bug Tracker, https://github.com/python/typing_extensions/issues",
+        "Changes, https://github.com/python/typing_extensions/blob/main/CHANGELOG.md",
+        "Documentation, https://typing-extensions.readthedocs.io/",
+        "Home, https://github.com/python/typing_extensions",
+        "Q & A, https://github.com/python/typing/discussions",
+        "Repository, https://github.com/python/typing_extensions"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/typing-extensions-4.16.0-LICENSE",
+          "installed_metadata_path": "typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+          "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf"
+        }
+      ]
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.2",
+      "group": "runtime",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/typing-inspection/0.4.2/",
+      "project_urls": [
+        "Homepage, https://github.com/pydantic/typing-inspection",
+        "Documentation, https://pydantic.github.io/typing-inspection/dev/",
+        "Source, https://github.com/pydantic/typing-inspection",
+        "Changelog, https://github.com/pydantic/typing-inspection/blob/main/HISTORY.md"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/typing-inspection-0.4.2-LICENSE",
+          "installed_metadata_path": "typing_inspection-0.4.2.dist-info/licenses/LICENSE",
+          "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3"
+        }
+      ]
+    },
+    {
+      "name": "uvicorn",
+      "version": "0.39.0",
+      "group": "runtime",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/uvicorn/0.39.0/",
+      "project_urls": [
+        "Changelog, https://uvicorn.dev/release-notes",
+        "Funding, https://github.com/sponsors/encode",
+        "Homepage, https://uvicorn.dev/",
+        "Source, https://github.com/Kludex/uvicorn"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/uvicorn-0.39.0-LICENSE.md",
+          "installed_metadata_path": "uvicorn-0.39.0.dist-info/licenses/LICENSE.md",
+          "sha256": "efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371"
+        }
+      ]
+    },
+    {
+      "name": "certifi",
+      "version": "2026.10.23",
+      "group": "optional development and test",
+      "license_summary": "MPL-2.0",
+      "package_url": "https://pypi.org/project/certifi/2026.10.23/",
+      "project_urls": [
+        "Source, https://github.com/certifi/python-certifi"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/certifi-2026.10.23-LICENSE",
+          "installed_metadata_path": "certifi-2026.10.23.dist-info/licenses/LICENSE",
+          "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7"
+        }
+      ]
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9",
+      "group": "optional development and test",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/httpcore/1.0.9/",
+      "project_urls": [
+        "Documentation, https://www.encode.io/httpcore",
+        "Homepage, https://www.encode.io/httpcore/",
+        "Source, https://github.com/encode/httpcore"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/httpcore-1.0.9-LICENSE.md",
+          "installed_metadata_path": "httpcore-1.0.9.dist-info/licenses/LICENSE.md",
+          "sha256": "fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5"
+        }
+      ]
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1",
+      "group": "optional development and test",
+      "license_summary": "BSD-3-Clause",
+      "package_url": "https://pypi.org/project/httpx/0.28.1/",
+      "project_urls": [
+        "Changelog, https://github.com/encode/httpx/blob/master/CHANGELOG.md",
+        "Documentation, https://www.python-httpx.org",
+        "Homepage, https://github.com/encode/httpx",
+        "Source, https://github.com/encode/httpx"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/httpx-0.28.1-LICENSE.md",
+          "installed_metadata_path": "httpx-0.28.1.dist-info/licenses/LICENSE.md",
+          "sha256": "4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d"
+        }
+      ]
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.1.0",
+      "group": "optional development and test",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/iniconfig/2.1.0/",
+      "project_urls": [
+        "Homepage, https://github.com/pytest-dev/iniconfig"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/iniconfig-2.1.0-LICENSE",
+          "installed_metadata_path": "iniconfig-2.1.0.dist-info/licenses/LICENSE",
+          "sha256": "3409fa91f7ace557894632676656e32264fe5ef7581535725dc9a23774551bd4"
+        }
+      ]
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "group": "optional development and test",
+      "license_summary": "Apache-2.0 OR BSD-2-Clause",
+      "package_url": "https://pypi.org/project/packaging/26.3/",
+      "project_urls": [
+        "Documentation, https://packaging.pypa.io/",
+        "Source, https://github.com/pypa/packaging"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/packaging-26.3-LICENSE",
+          "installed_metadata_path": "packaging-26.3.dist-info/licenses/LICENSE",
+          "sha256": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48"
+        },
+        {
+          "file": "LICENSES/packaging-26.3-LICENSE.APACHE",
+          "installed_metadata_path": "packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+          "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+        },
+        {
+          "file": "LICENSES/packaging-26.3-LICENSE.BSD",
+          "installed_metadata_path": "packaging-26.3.dist-info/licenses/LICENSE.BSD",
+          "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+        }
+      ]
+    },
+    {
+      "name": "pluggy",
+      "version": "1.6.0",
+      "group": "optional development and test",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/pluggy/1.6.0/",
+      "project_urls": [],
+      "license_files": [
+        {
+          "file": "LICENSES/pluggy-1.6.0-LICENSE",
+          "installed_metadata_path": "pluggy-1.6.0.dist-info/licenses/LICENSE",
+          "sha256": "d6b65e6c213a5d0b577911d34d6e5949b9f59d76c238c5071a2f3fc16cfb2606"
+        }
+      ]
+    },
+    {
+      "name": "Pygments",
+      "version": "2.21.0",
+      "group": "optional development and test",
+      "license_summary": "BSD-2-Clause",
+      "package_url": "https://pypi.org/project/Pygments/2.21.0/",
+      "project_urls": [
+        "Homepage, https://pygments.org",
+        "Documentation, https://pygments.org/docs",
+        "Source, https://github.com/pygments/pygments",
+        "Bug Tracker, https://github.com/pygments/pygments/issues",
+        "Changelog, https://github.com/pygments/pygments/blob/master/CHANGES"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/pygments-2.21.0-AUTHORS",
+          "installed_metadata_path": "pygments-2.21.0.dist-info/licenses/AUTHORS",
+          "sha256": "71a83872ad82f57be692cf827e048e2cd51d45169cfa1ea3f28706d97a872c0f"
+        },
+        {
+          "file": "LICENSES/pygments-2.21.0-LICENSE",
+          "installed_metadata_path": "pygments-2.21.0.dist-info/licenses/LICENSE",
+          "sha256": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17"
+        }
+      ]
+    },
+    {
+      "name": "pytest",
+      "version": "8.4.2",
+      "group": "optional development and test",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/pytest/8.4.2/",
+      "project_urls": [
+        "Changelog, https://docs.pytest.org/en/stable/changelog.html",
+        "Contact, https://docs.pytest.org/en/stable/contact.html",
+        "Funding, https://docs.pytest.org/en/stable/sponsor.html",
+        "Homepage, https://docs.pytest.org/en/latest/",
+        "Source, https://github.com/pytest-dev/pytest",
+        "Tracker, https://github.com/pytest-dev/pytest/issues"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/pytest-8.4.2-AUTHORS",
+          "installed_metadata_path": "pytest-8.4.2.dist-info/licenses/AUTHORS",
+          "sha256": "c2017d6288262cf9c39aecc8e51df3422a9f2bbca1e4b55d28491022070c7577"
+        },
+        {
+          "file": "LICENSES/pytest-8.4.2-LICENSE",
+          "installed_metadata_path": "pytest-8.4.2.dist-info/licenses/LICENSE",
+          "sha256": "ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b"
+        }
+      ]
+    },
+    {
+      "name": "tomli",
+      "version": "2.5.0",
+      "group": "optional development and test",
+      "license_summary": "MIT",
+      "package_url": "https://pypi.org/project/tomli/2.5.0/",
+      "project_urls": [
+        "Changelog, https://github.com/hukkin/tomli/blob/master/CHANGELOG.md",
+        "Homepage, https://github.com/hukkin/tomli"
+      ],
+      "license_files": [
+        {
+          "file": "LICENSES/tomli-2.5.0-LICENSE",
+          "installed_metadata_path": "tomli-2.5.0.dist-info/licenses/LICENSE",
+          "sha256": "b80816b0d530b8accb4c2211783790984a6e3b61922c2b5ee92f3372ab2742fe"
+        }
+      ]
+    }
+  ]
+}

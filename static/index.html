@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0c1728">
+  <meta name="robots" content="noindex,nofollow">
+  <title>キャビティ FEM 解析</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-detail"><span id="runtime-location" class="runtime-location" role="status" aria-live="polite" title="計算とデータ保存を行うPCを確認しています。"><span id="runtime-dot" class="local-dot checking" aria-hidden="true"></span><span id="runtime-label">実行先を確認中</span></span><span class="header-divider"></span><span id="solver-label">ソルバー接続中</span></div>
+    <a class="header-link" href="/docs" target="_blank" rel="noreferrer">API <span aria-hidden="true">↗</span></a>
+  </header>
+  <main class="app-shell">
+    <aside class="controls" aria-label="解析設定">
+      <div class="sidebar-heading"><span class="eyebrow">WORKSPACE</span><h1>キャビティ解析</h1><p>STEP から固有モード・損失・結合を評価</p></div>
+      <section class="control-section">
+        <div class="section-heading"><span class="step-number">01</span><h2>形状を読み込む</h2><span id="geometry-badge" class="small-badge">未読込</span></div>
+        <label id="drop-zone" class="drop-zone" tabindex="0" for="step-file">
+          <strong>STEP をドラッグ＆ドロップ</strong><span>またはファイルを選択</span><small>.step / .stp · 形状データはローカルで処理</small>
+        </label>
+        <input id="step-file" type="file" accept=".step,.stp,.txt" hidden>
+        <button id="example-button" class="button secondary wide" type="button"><span aria-hidden="true">↳</span> 円筒サンプルを読み込む</button>
+        <div id="file-summary" class="file-summary" hidden><span class="file-icon">CAD</span><div><strong id="filename"></strong><small id="file-facts"></small></div><span class="check-icon">✓</span></div>
+        <label class="field">解析する領域<select id="geometry-mode"><option value="metal_void">金属モデルから空隙を抽出</option><option value="vacuum_solid" selected>選択ソリッドを電磁場領域にする</option></select><span class="field-help" id="geometry-mode-help">選択したソリッドを電磁場領域として扱います。サンプルは半径 15 mm・高さ 20 mm の真空円筒です。</span></label>
+        <label class="field">ソリッド<select id="solid-index"><option value="0">形状の読み込み後に選択</option></select></label>
+      </section>
+      <section class="control-section">
+        <div class="section-heading"><span class="step-number">02</span><h2>固有モードとメッシュ</h2></div>
+        <label class="field">解析の目的<select id="analysis-mode"><option value="resonance">共振・アンテナ結合・S11</option><option value="all_openings_qc">指定した全開口の流出電力・空洞 Qc</option></select></label>
+        <p id="analysis-help" class="help-note">固有モードと内部損失を求め、同軸アンテナを指定した場合は S11 を計算します。</p>
+        <label class="field">モードの探索<select id="mode-search"><option value="lowest">低い周波数から探索</option><option value="target">目標周波数付近を探索</option></select></label>
+        <div class="field-grid"><label class="field">近傍探索の目標 <span class="unit">GHz</span><input id="target-ghz" type="number" value="8" min="0.001" max="1000" step="any" required></label><label class="field">モード数<input id="n-modes" type="number" value="6" min="1" max="12" step="1" required></label></div>
+        <div class="field-grid"><label class="field">最大要素寸法 <span class="unit">mm</span><input id="maxh-mm" type="number" value="2" min="0.1" max="30" step="any" required></label><label class="field">要素次数<select id="order"><option value="1">1 次</option><option value="2" selected>2 次</option><option value="3">3 次</option></select></label></div>
+        <label class="field">計算スレッド数<input id="threads" type="number" value="2" min="1" max="16" step="1" required></label>
+        <p class="help-note">小さいメッシュと高い次数は精度と計算時間に影響します。収束を確かめてから結果を採用してください。</p>
+        <details class="advanced" open><summary>広帯域の周波数スキャン</summary><div class="details-body">
+          <label class="check-field"><input id="spectrum-enabled" type="checkbox" checked> S11 を計算する</label>
+          <div class="field-grid"><label class="field">開始 <span class="unit">GHz</span><input id="spectrum-start-ghz" type="number" value="0.1" min="0.0001" step="any" required></label><label class="field">終了 <span class="unit">GHz</span><input id="spectrum-stop-ghz" type="number" value="18" min="0.0001" step="any" required></label></div>
+          <div class="field-grid"><label class="field">周波数点数<input id="spectrum-points" type="number" value="41" min="5" max="401" step="1" required></label><label class="field">励振ポート<select id="driven-port"><option value="">自動選択</option></select></label></div>
+          <p class="help-note">S11 にはアンテナの同軸ポートが必要です。広帯域で共振位置を確認し、結果の「選択モード」表示で線幅まで拡大できます。各共振付近に自動で計算点を追加します。</p>
+        </div></details>
+        <label class="field">電場断面の解像度<input id="field-resolution" type="number" value="41" min="11" max="101" step="1" required><span class="field-help">1 辺のサンプル数。11〜101 点で指定します。</span></label>
+      </section>
+      <section class="control-section">
+        <div class="section-heading"><span class="step-number">03</span><h2>材料と内部損失</h2></div>
+        <label class="field">内部損失モデル<select id="loss-model"><option value="tls_qres">TLS + 残留損失 Qres（係数を指定）</option><option value="surface_rs" selected>表面抵抗 Rs + 誘電体損失</option><option value="none">損失なし（Qi を推定しない）</option></select></label>
+        <label id="rs-field" class="field">壁面の表面抵抗 R<sub>s</sub> <span class="unit">nΩ</span><input id="rs-nohm" type="number" value="10" min="0" step="any" placeholder="動作条件に対応する表面抵抗"><span class="field-help">初期値 10 nΩ は例です。材料・温度・周波数に対応する値に変更してください。</span></label>
+        <details id="tls-settings" class="advanced" hidden><summary>TLS・温度・光子数の設定</summary><div class="details-body">
+          <div class="field-grid"><label class="field">温度 <span class="unit">K</span><input id="temperature-k" type="number" value="0.02" min="0.000001" max="300" step="any" required></label><label class="field">平均光子数<input id="photon-number" type="number" value="1" min="0" step="any" required></label></div>
+          <div class="field-grid"><label class="field">飽和光子数 n<sub>c</sub><input id="tls-nc" type="number" value="1" min="0.000001" step="any" required></label><label class="field">指数 β<input id="tls-beta" type="number" value="0.5" min="0.000001" max="2" step="any" required></label></div>
+          <label id="qres-field" class="field">残留損失 Q<sub>res</sub><input id="q-res" type="number" min="1" step="any" placeholder="未設定"></label><p class="help-note">TLS 係数は対象材料の測定値やモデルに合わせて指定してください。初期値は材料の特性を表すものではありません。</p>
+        </div></details>
+        <details class="advanced" open><summary>誘電体・表面酸化膜</summary><div class="details-body">
+          <div class="field-grid"><label class="field">バルク ε<sub>r</sub><input id="bulk-epsr" type="number" value="1" min="1" max="1000" step="any" required></label><label class="field">バルク tan δ<input id="bulk-tand" type="number" value="0" min="0" max="0.1" step="any" required></label></div>
+          <div class="field-grid"><label class="field">酸化膜厚さ <span class="unit">nm</span><input id="oxide-thickness-nm" type="number" value="0" min="0" max="1000" step="any" required></label><label class="field">酸化膜 ε<sub>r</sub><input id="oxide-epsr" type="number" value="1" min="1" max="1000" step="any" required></label></div>
+          <label class="field">酸化膜 tan δ<input id="oxide-tand" type="number" value="0" min="0" max="1" step="any" required></label>
+          <p class="help-note">表面酸化膜は薄膜近似。バルクは解析領域内を一様な誘電体として扱います。</p>
+        </div></details>
+      </section>
+      <section class="control-section port-section">
+        <div class="section-heading"><span class="step-number">04</span><h2>ポートの結合</h2><span id="port-count" class="small-badge">0 PORTS</span></div>
+
+        <p class="help-note antenna-preset">寸法を指定する同軸アンテナです。中心導体・外導体・誘電体・基準面を対象の形状に合わせて設定してください。</p>
+        <button id="add-antenna-button" class="button secondary wide" type="button" disabled>選択面にアンテナを追加</button>
+        <div id="antenna-list" class="antenna-list"><p class="empty-inline">CAD で取り付け面を選択してください。長さは選択面から空洞内部への突出量です。</p></div>
+        <div class="antenna-preview-actions"><button id="preview-antennas" class="button secondary" type="button" disabled>挿入形状を確認</button><button id="restore-source" class="text-button" type="button" hidden>原形状に戻る</button></div>
+        <details class="advanced"><summary>アンテナ長さを掃引</summary><div class="details-body">
+          <label class="check-field"><input id="sweep-enabled" type="checkbox"> 複数の長さで Qc を計算する</label>
+          <label class="field">掃引するアンテナ<select id="sweep-antenna"><option value="">アンテナを追加してください</option></select></label>
+          <label class="field">突出長さの一覧 <span class="unit">mm</span><input id="sweep-lengths" type="text" value="0, 2, 4, 6, 8" placeholder="0, 2, 4, 6, 8"><span class="field-help">0 mm から指定可能。カンマで区切ります。壁面との衝突は計算前に確認されます。</span></label>
+          <p class="help-note">前の長さの共振周波数に近いモードを追跡します。モード交差や強い混成では電場も確認してください。</p>
+        </div></details>
+        <div class="opening-controls">
+          <h3>外部へ開いた面の境界</h3>
+          <p class="help-note">CAD で開口面を選んで追加します。アンテナと併用できますが、同じ面への重複指定はできません。</p>
+          <button id="add-port-button" class="button secondary wide" type="button" disabled>選択面を外部境界に追加</button>
+          <button id="review-caps-button" class="text-button" type="button" disabled>人工キャップの候補をまとめて確認</button>
+          <div id="cap-review" class="cap-review" hidden><p class="help-note">人工キャップは開口の候補です。実際の開口かどうかを確認して選択してください。形状中の全穴を検出した保証はありません。</p><div id="cap-review-list"></div><button id="apply-caps-button" class="button secondary small" type="button">選択した候補を追加</button><button id="cancel-caps-button" class="text-button" type="button">閉じる</button></div>
+          <div id="port-list" class="port-list"><p class="empty-inline">外部境界は未設定です。</p></div>
+          <p class="help-note">放射境界は外部媒質の平面波インピーダンスを使う近似です（真空で約 377 Ω）。PML による厳密な自由空間ではありません。上の同軸アンテナの回路インピーダンス 50 Ω とは別の量です。</p>
+          <details class="advanced"><summary>境界設定の JSON 編集</summary><div class="details-body"><label class="field">外部境界の定義<textarea id="ports-json" rows="6" spellcheck="false" aria-describedby="port-help">[]</textarea></label><p id="port-help" class="help-note">変更は「JSON を適用」で上の境界カードへ反映します。計算にはカードに表示された設定を使用します。</p><button id="apply-ports-json" class="button secondary small" type="button">JSON を適用</button><span id="ports-json-state" class="field-help">カードと同期済み</span></div></details>
+        </div>
+      </section>
+      <div class="run-area"><div id="preflight-estimate" class="estimate-box" role="status"><strong id="estimate-title">計算時間の見積り</strong><span id="estimate-duration">条件を確認中</span><small id="estimate-detail">形状・設定・過去の実測から推定します。</small></div><button id="run-button" class="button primary wide" type="button" disabled><span class="run-icon" aria-hidden="true">▶</span><span id="run-label">解析を実行</span></button><button id="cancel-button" class="button secondary wide" type="button" hidden>計算を停止</button><p id="run-hint">先に STEP 形状を読み込んでください</p></div>
+    </aside>
+    <div class="workspace">
+      <div class="workspace-heading"><div><span class="eyebrow">ELECTROMAGNETIC EIGENMODES</span><h2>形状と解析結果</h2></div><span id="status-pill" class="status-pill"><span></span>準備中</span></div>
+      <div id="work-progress" class="work-progress" role="status" hidden><strong id="work-progress-title"></strong><span id="work-progress-time"></span><small id="work-progress-detail"></small></div>
+      <div id="notice" class="notice" role="status" hidden><span id="notice-text"></span><button id="notice-close" type="button" aria-label="通知を閉じる">×</button></div>
+      <section class="viewer-card" aria-labelledby="viewer-title">
+        <div class="card-toolbar"><div class="toolbar-title"><span class="panel-dot"></span><h3 id="viewer-title">CAD ビュー</h3><span id="viewer-subtitle">解析領域の確認</span></div><div class="toolbar-actions"><button id="reset-view" type="button" title="視点をリセット" aria-label="視点をリセット">⤢</button><button id="wire-toggle" type="button" aria-pressed="false" title="ワイヤーフレーム表示">WIRE</button></div></div>
+        <div id="viewer-wrap" class="viewer-wrap"><canvas id="cad-canvas" aria-label="CAD 形状。ドラッグで回転、ホイールで拡大、面をクリックで選択。"></canvas>
+          <div id="viewer-empty" class="viewer-empty"><h3>STEP を読み込んでください</h3><p>ここに解析領域の形状を表示します。</p></div>
+          <div class="viewer-coordinate" aria-hidden="true"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="axis-z">Z</span><small>mm</small></div><div class="viewer-legend">ドラッグ：回転 <i>·</i> スクロール：拡大 <i>·</i> クリック：面を選択</div>
+          <div id="face-chip" class="face-chip" hidden>選択面 <strong id="selected-face">—</strong><button id="clear-face" type="button" aria-label="面選択を解除">×</button></div>
+        </div>
+        <div class="geometry-strip"><div><small>SOLIDS</small><strong id="solid-count">—</strong></div><div><small>FACES</small><strong id="face-count">—</strong></div><div class="extent-value"><small>BOUNDING BOX <span>mm</span></small><strong id="bbox-value">—</strong></div><div class="face-selector"><label for="face-select">面 ID を選択</label><select id="face-select" disabled><option value="">未選択</option></select></div></div>
+      </section>
+      <section class="results-section" aria-labelledby="results-title">
+        <div class="results-heading"><div><h3 id="results-title">共振モード</h3><p id="results-subtitle">解析完了後に数値と計算条件を確認できます</p></div><div class="result-downloads"><a id="download-fields" class="button secondary small" href="#" download hidden>電磁界 VTU ↓</a><a id="download-results" class="button secondary small" href="#" download hidden>結果 JSON ↓</a></div></div>
+        <div class="metrics-grid"><article class="metric"><span>共振周波数</span><div><strong id="metric-frequency">—</strong><small>GHz</small></div><p id="metric-mode">モード未選択</p></article><article class="metric"><span>内部 Q · Q<sub>i</sub></span><div><strong id="metric-qi">—</strong></div><p>指定した内部損失モデル</p></article><article class="metric"><span>負荷 Q · Q<sub>L</sub></span><div><strong id="metric-ql">—</strong></div><p>内部損失 + ポート結合</p></article><article class="metric"><span>幾何学的因子 · G</span><div><strong id="metric-g">—</strong><small>Ω</small></div><p>壁面損失：Q = G / R<sub>s</sub></p></article></div>
+        <div class="result-card"><div class="tab-bar" role="tablist" aria-label="解析の詳細"><button class="tab active" id="tab-modes" role="tab" aria-selected="true" aria-controls="panel-modes" data-tab="modes" type="button">モード一覧</button><button class="tab" id="tab-loss" role="tab" aria-selected="false" aria-controls="panel-loss" data-tab="loss" type="button">損失・Participation</button><button class="tab" id="tab-spectrum" role="tab" aria-selected="false" aria-controls="panel-spectrum" data-tab="spectrum" type="button">S11・長さ掃引</button><button class="tab" id="tab-field" role="tab" aria-selected="false" aria-controls="panel-field" data-tab="field" type="button">電場分布</button><button class="tab" id="tab-log" role="tab" aria-selected="false" aria-controls="panel-log" data-tab="log" type="button">計算ログ<span id="log-active" hidden></span></button></div>
+          <div id="panel-modes" class="tab-panel" role="tabpanel" aria-labelledby="tab-modes"><div class="table-scroll"><table class="data-table"><thead><tr><th>MODE</th><th>周波数 <small>GHz</small></th><th>Q<sub>i</sub></th><th>Q<sub>L</sub></th><th>相対残差</th></tr></thead><tbody id="modes-body"><tr><td colspan="5" class="table-empty">まだ解析結果がありません。形状と条件を設定して、解析を実行してください。</td></tr></tbody></table></div><div id="computation-facts" class="computation-facts" hidden></div><div id="mode-search-summary" class="mode-search-summary" hidden></div><div id="result-warnings" class="result-warnings" hidden></div></div>
+          <div id="panel-loss" class="tab-panel" role="tabpanel" aria-labelledby="tab-loss" hidden><div class="loss-layout"><div><h4>電気エネルギーの participation</h4><p class="help-note">選択モードの電気エネルギーに対する割合。酸化膜は界面の電場から求める薄膜近似です。</p><div id="participation-results" class="participation-results"><p class="empty-inline">解析結果がありません</p></div></div><div><h4 id="port-results-title">各ポートの外部 Q · Qc</h4><p id="port-results-method" class="help-note">ポート境界での流出電力から評価します。</p><div id="port-energy-summary" class="port-energy-summary" hidden></div><div id="port-results"><p class="empty-inline">ポート未設定</p></div></div></div><p id="loss-method-note" class="method-note">Q<sub>L</sub><sup>−1</sup> = Q<sub>i</sub><sup>−1</sup> + Σ Q<sub>c,p</sub><sup>−1</sup>。未設定の損失パラメータは、数値として推定しません。</p></div>
+          <div id="panel-spectrum" class="tab-panel plot-panel" role="tabpanel" aria-labelledby="tab-spectrum" hidden>
+            <div class="plot-heading"><div><h4>反射係数 S11</h4><p id="spectrum-description" class="help-note">実計算した周波数応答を表示します。</p></div></div>
+            <div class="field-view-controls"><label>表示量<select id="spectrum-quantity"><option value="db">振幅 / dB</option><option value="phase">位相 / °（−180〜180）</option></select></label><label>表示範囲<select id="spectrum-view"><option value="wide">広帯域</option><option value="mode">選択モードの ±20 線幅</option></select></label><label>共振モード<select id="spectrum-mode"><option value="">未計算</option></select></label></div><div id="spectrum-chart" class="scientific-chart"><p class="empty-inline">アンテナを設定して、S11 計算を実行してください。</p></div>
+            <p class="help-note">|S11| がほぼ 1 でも、位相に共振が現れる場合があります。位相は −180°〜180° に折り返して表示します。</p><div id="spectrum-warnings" class="plot-warnings" hidden></div>
+            <section class="sweep-results-section"><h4>アンテナ突出長さと Qc</h4><p id="sweep-description" class="help-note">長さ掃引を有効にすると、各長さの共振周波数と結合を比較できます。</p><div id="sweep-chart" class="scientific-chart"><p class="empty-inline">長さ掃引の結果はありません。</p></div><div id="sweep-table" class="table-scroll"></div><div id="sweep-warnings" class="plot-warnings" hidden></div></section>
+          </div>
+          <div id="panel-field" class="tab-panel plot-panel" role="tabpanel" aria-labelledby="tab-field" hidden>
+            <div class="plot-heading"><div><h4>固有モードの電場強度 |E|</h4><p id="field-normalization" class="help-note">モードと断面を選択して電場分布を確認できます。</p></div><a id="download-field-json" class="button secondary small" href="#" download hidden>断面 JSON ↓</a></div>
+            <div class="field-view-controls"><label>モード<select id="field-mode"><option value="">未計算</option></select></label><label>断面<select id="field-plane"><option value="xy">XY</option><option value="xz">XZ</option><option value="yz" selected>YZ</option></select></label><label>色スケール<select id="field-scale"><option value="linear">線形</option><option value="log">対数</option></select></label><span id="field-coordinate"></span></div>
+            <div id="field-plot-wrap" class="field-plot-wrap"><canvas id="field-canvas" aria-label="有限要素計算による電場強度の断面分布"></canvas><p id="field-empty" class="field-empty">解析完了後に電場分布を表示します。</p></div>
+            <div id="field-legend" class="field-legend" hidden><span id="field-min">0</span><span class="field-colorbar"></span><span id="field-max">—</span><small id="field-unit"></small></div>
+            <p class="help-note">色のない領域は解析領域の外側です。固有モードの場は任意振幅で正規化されています。絶対的な励振電力に対する電場ではありません。</p>
+          </div>
+          <div id="panel-log" class="tab-panel log-panel" role="tabpanel" aria-labelledby="tab-log" hidden><div class="log-heading"><span id="log-stage">待機中</span><span id="elapsed-time"></span></div><pre id="job-log" tabindex="0">解析を実行すると、進行状況とソルバーの出力がここに表示されます。</pre></div>
+        </div>
+      </section>
+      <section class="history-section"><div class="results-heading"><h3>計算履歴</h3><button id="refresh-jobs" class="text-button" type="button">更新 ↻</button></div><div id="job-history" class="job-history"><span class="empty-inline">保存された計算はありません</span></div></section>
+      <footer class="workspace-footer"><span>有限要素法による周波数領域解析</span><span>結果の妥当性は形状・境界条件・材料値・メッシュ収束に依存します</span></footer>
+    </div>
+  </main>
+</body>
+</html>
