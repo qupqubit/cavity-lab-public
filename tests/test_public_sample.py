@@ -63,7 +63,7 @@ def test_public_api_sample_info_and_health(tmp_path, monkeypatch):
     with TestClient(api.app, base_url='http://127.0.0.1:8768') as client:
         health = client.get('/api/health').json()
         assert health['app'] == 'cavity-lab-public'
-        assert health['version'] == __version__ == '0.1.0'
+        assert health['version'] == __version__ == '0.1.1'
         assert health['development'] is False
         info = client.get('/api/info').json()
         assert set(info) == {'solver', 'version', 'example_available', 'local_only', 'app_version', 'sample'}

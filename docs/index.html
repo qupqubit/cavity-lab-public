@@ -26,9 +26,22 @@
     <ol>
       <li><h3>Python を用意する</h3><p>Python 3.9〜3.12 を使用します（3.12 推奨）。未導入の場合は、<a href="https://www.python.org/downloads/" rel="noreferrer">Python の公式サイト</a>からインストールしてください。Windows では Python Launcher もインストールしてください。</p></li>
       <li><h3>ZIP をダウンロードして、全体を展開する</h3><p>上のボタンからアプリ一式を取得し、ZIP をすべて展開してください。起動用ファイルだけを取り出さず、同梱のフォルダとファイルを一緒に置きます。</p></li>
-      <li><h3>このPCで起動用ファイルを開く</h3><dl class="launcher-list"><dt>macOS</dt><dd>展開したフォルダ内の <code>launch.command</code></dd><dt>Windows</dt><dd>展開したフォルダ内の <code>launch.bat</code></dd></dl><p>初回は必要な計算用ライブラリを準備します。処理が終わるまで待ち、表示された解析画面を使ってください。起動用ファイルを開けない場合は、同梱の README にある起動手順を確認してください。</p></li>
+      <li><h3>このPCで起動用ファイルを開く</h3><dl class="launcher-list"><dt>macOS</dt><dd>展開したフォルダ内の <code>launch.command</code></dd><dt>Windows</dt><dd>展開したフォルダ内の <code>launch.bat</code></dd></dl><p>初回は必要な計算用ライブラリを準備します。処理が終わるまで待ち、表示された解析画面を使ってください。Macで「Appleは検証できませんでした」と表示された場合は、<a href="#mac-warning">以下の警告への対処</a>を確認してください。</p></li>
       <li><h3>STEP を読み込んで解析する</h3><p>解析画面に STEP を読み込み、領域・材料・境界条件を確認して実行します。「円筒サンプルを読み込む」で、半径 15 mm・高さ 20 mm の真空円筒も試せます。材料損失や同軸寸法の初期値は例なので、対象に合わせて変更してください。</p></li>
     </ol>
+  </section>
+  <section id="mac-warning" aria-labelledby="mac-warning-title">
+    <h2 id="mac-warning-title">Macで「launch.command は開いていません」と表示されたら</h2>
+    <p>この配布版の起動ファイルは、AppleのDeveloper IDによる署名・公証を受けていません。そのため、別のMacへダウンロードして最初に開く際に、Gatekeeperが実行を止める場合があります。「Appleはマルウェアが含まれていないことを検証できませんでした」という警告は、マルウェアが検出されたという通知とは異なります。ただし、安全性が保証されたという意味でもありません。</p>
+    <p><a href="https://github.com/qupqubit/cavity-lab-public/releases" rel="noreferrer">このプロジェクトの配布ページ</a>から取得したファイルであることを確認し、実行を許可する場合は次の操作を行ってください。</p>
+    <ol>
+      <li>警告画面で「完了」を押します。</li>
+      <li>Appleメニューから「システム設定」→「プライバシーとセキュリティ」を開き、下へスクロールします。</li>
+      <li><code>launch.command</code> がブロックされた旨の表示の横にある「このまま開く」を選びます。</li>
+      <li>認証と確認を求められたら内容を確認して「開く」を選びます。ターミナルが開き、初回準備が始まります。</li>
+    </ol>
+    <p class="note">「このまま開く」が出ない場合は、起動ファイルをもう一度開いて警告を閉じ、設定を確認してください。組織が管理するMacでは管理者の制限がある場合があります。Mac全体のGatekeeperを無効にする操作や、一括の隔離属性削除は不要です。<a href="https://support.apple.com/ja-jp/102445" rel="noreferrer">Apple公式の説明</a></p>
+    <p class="note">これは実行権限のエラーとは別です。「適切なアクセス権がない」と表示される場合の手順はREADMEを確認してください。案内を更新した配布ZIPでも、Appleの署名・公証が追加されたわけではありません。</p>
   </section>
   <section aria-labelledby="next-title">
     <h2 id="next-title">次回から使うとき</h2>
