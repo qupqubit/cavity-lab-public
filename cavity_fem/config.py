@@ -2,6 +2,8 @@ from typing import List, Optional
 import math
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 
+from .resources import MAX_THREADS, recommended_threads
+
 
 class Port(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
@@ -65,7 +67,7 @@ class SolveConfig(BaseModel):
     order: int = Field(default=2, ge=1, le=3)
     n_modes: int = Field(default=3, ge=1, le=12)
     target_ghz: float = Field(default=8.0, gt=0, le=1000)
-    threads: int = Field(default=2, ge=1, le=16)
+    threads: int = Field(default_factory=recommended_threads, ge=1, le=MAX_THREADS)
     rs_nohm: Optional[float] = Field(default=10.0, ge=0)
     bulk_epsr: float = Field(default=1.0, ge=1, le=1000)
     bulk_tand: float = Field(default=0, ge=0, le=0.1)

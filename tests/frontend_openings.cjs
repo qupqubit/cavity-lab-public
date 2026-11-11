@@ -27,7 +27,8 @@ function app(){
       createElement:tag=>new Element(tag),createTextNode:text=>text,querySelectorAll:()=>[]},
   });
   const declarations=source.split('\n').filter(line=>/^  (const \$ =|const state =|Object.assign\(state|const mappings =|Object.assign\(mappings|const num =|const fmt =|const qfmt =|const elem =|const blank =|const setText =)/.test(line));
-  const names=['updateAnalysisMode','loadGeometry','selectFace','openingCandidates','manualPort',
+  const names=['updateAnalysisMode','updateGeometryHelp','renderDomainDetection','resolvedGeometryMode',
+    'verifyGeometryMode','protectThreadSelection','loadGeometry','selectFace','openingCandidates','manualPort',
     'syncAutomaticPorts','configureNewOpenings','setAutomaticOpenings','excludeOpening',
     'editOpening','removeOpening','showOpeningFace','renderAutoOpenings','validatePorts',
     'readPorts','syncPortsJson','updatePortCount','portsChanged','renderPorts','addOpening',
@@ -44,7 +45,8 @@ function app(){
     function syncButtons(){} function scheduleEstimate(){} function refreshAntennaSelectors(){}
     function updateLossModel(){} function setStatus(){} function startTransient(){} function endTransient(){}
     function notice(text){globalThis.lastNotice=text;}
-    function applyGeometry(geo){state.geometry=geo;$('geometry-mode').value=geo.mode;}
+    const jsonPost=body=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    function applyGeometry(geo){state.geometry=geo;$('geometry-mode').value=state.geometryRequestedMode;}
     async function api(){return globalThis.nextGeometry;}
     globalThis.openingsTest={state,loadGeometry,configureNewOpenings,setAutomaticOpenings,
       openingCandidates,renderPorts,collectConfig,restoreConfig,restoreCapPorts,
@@ -86,8 +88,8 @@ test('new region resets exclusions and zero candidates return to resonance',asyn
   await ui.load(geometry('metal_void',[6]));assert.deepEqual(ui.autoFaces(),[6]);
 });
 
-test('vacuum solid fallback does not generate openings even with cap-like metadata',async()=>{
-  const ui=app();await ui.load();await ui.load(geometry('vacuum_solid'));
+test('automatic selection of vacuum solid does not generate openings even with cap-like metadata',async()=>{
+  const ui=app();await ui.load();ui.nodes.get('geometry-mode').value='auto';await ui.load(geometry('vacuum_solid'));
   assert.equal(ui.config().all_artificial_caps,false);
   assert.equal(ui.config().analysis_mode,'resonance');assert.deepEqual(ui.autoFaces(),[]);
   assert.equal(ui.nodes.get('automatic-openings').hidden,true);

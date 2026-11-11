@@ -30,7 +30,7 @@ function app() {
   const declarations = source.split('\n').filter(line =>
     /^  (const \$ =|const state =|Object.assign\(state|const num =|const fmt =|const setText =)/.test(line));
   const names = ['api','updateAnalysisMode','duration','finishTime','estimateBasis','memoryGiB','memoryLow',
-    'renderMemory','scheduleMemory','requestMemory','loadServerInfo','refreshMemory',
+    'renderMemory','scheduleMemory','requestMemory','loadServerInfo','refreshMemory','applyCpuPolicy','protectThreadSelection',
     'scheduleEstimate','requestEstimate','renderPreflightFinish','renderJob'];
   const definitions = names.map(name => {
     const begin = source.search(new RegExp('  (?:async )?function '+name+'\\('));
@@ -48,9 +48,10 @@ function app() {
     function renderResult(){} function notice(message){globalThis.lastNotice=message;}
     function updateExecutionLocation(info){globalThis.connected=!!info;}
     function collectConfig(){throw new Error('unrelated incomplete geometry inputs');}
-    globalThis.memoryTest={state,renderMemory,renderJob,requestMemory,loadServerInfo,refreshMemory};
+    globalThis.memoryTest={state,renderMemory,renderJob,requestMemory,loadServerInfo,refreshMemory,applyCpuPolicy,protectThreadSelection};
   `,context);
   nodes.get('order').value='2';nodes.get('n-modes').value='6';
+  nodes.get('threads').value='1';
   nodes.get('analysis-mode').value='resonance';
   const startup=source.match(/^  updateGeometryHelp\(\);.*\n  loadServerInfo\(\);$/m);
   assert.ok(startup,'Startup sequence not found');
@@ -160,4 +161,50 @@ test('invalid mode count settles without fetching and does not erase job diagnos
   assert.equal(ui.state.memoryLimitState,'invalid');
   assert.equal(ui.text('memory-dof'),'条件入力後に表示');
   assert.equal(ui.text('memory-job-dofs'),'190,000');
+});
+
+const cpu = extra => ({detected:true,available_cpus:10,recommended_threads:8,
+  target_fraction:.8,max_threads:1024,...extra});
+
+test('first detected CPU policy applies recommended threads once and explains variable CPU usage', async () => {
+  const ui=app();ui.context.fetch=async()=>response({cpu:cpu()});
+  assert.equal(ui.nodes.get('threads').value,'1');await ui.loadServerInfo();
+  assert.equal(ui.nodes.get('threads').value,'8');assert.equal(ui.nodes.get('threads').max,'1024');
+  assert.match(ui.text('threads-help'),/10 スレッド.*8.*80%.*CPU 使用率.*変わります/);
+  ui.context.fetch=async()=>response({cpu:cpu({available_cpus:20,recommended_threads:16})});
+  await ui.loadServerInfo();assert.equal(ui.nodes.get('threads').value,'8');
+  assert.match(ui.text('threads-help'),/20 スレッド.*16/);
+});
+
+test('CPU detection can recover after failure without treating unavailable values as measured zero', async () => {
+  const ui=app();ui.context.fetch=async()=>response({cpu:cpu({detected:false,available_cpus:null,recommended_threads:1})});
+  await ui.loadServerInfo();assert.equal(ui.nodes.get('threads').value,'1');
+  assert.equal(ui.state.threadsDefaultApplied,false);assert.match(ui.text('threads-help'),/取得できません/);
+  ui.context.fetch=async()=>response({cpu:cpu()});await ui.loadServerInfo();
+  assert.equal(ui.nodes.get('threads').value,'8');
+});
+
+test('late info response does not overwrite threads edited while the request was pending', async () => {
+  const ui=app();let resolve;
+  ui.context.fetch=()=>new Promise(done=>{resolve=done;});
+  const pending=ui.loadServerInfo();
+  ui.nodes.get('threads').value='3';ui.protectThreadSelection();
+  resolve(response({cpu:cpu()}));await pending;
+  assert.equal(ui.nodes.get('threads').value,'3');
+  assert.match(ui.text('threads-help'),/推奨 8/);
+});
+
+test('out-of-order server info cannot overwrite the latest CPU policy or its applied default', async () => {
+  const ui=app(),pending=[];ui.context.fetch=()=>new Promise(resolve=>pending.push(resolve));
+  const old=ui.loadServerInfo(),current=ui.loadServerInfo();
+  pending[1](response({cpu:cpu({available_cpus:5,recommended_threads:4})}));await current;
+  pending[0](response({cpu:cpu()}));await old;
+  assert.equal(ui.nodes.get('threads').value,'4');assert.match(ui.text('threads-help'),/5 スレッド.*推奨 4/);
+});
+
+test('running or previously submitted jobs prevent an initial late default from replacing their threads',()=>{
+  for(const status of ['queued','running','completed']){
+    const ui=app();ui.nodes.get('threads').value='2';ui.renderJob({id:'synthetic-job',status});ui.applyCpuPolicy(cpu());
+    assert.equal(ui.nodes.get('threads').value,'2');assert.equal(ui.state.threadsProtected,true);
+  }
 });

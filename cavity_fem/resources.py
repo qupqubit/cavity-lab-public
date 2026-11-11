@@ -1,4 +1,4 @@
-"""Physical-memory policy for local FEM workers; no FEM imports are required.
+"""CPU defaults and physical-memory policy; no FEM imports are required.
 
 The peak-memory curve is a deliberately conservative planning heuristic, not a
 measurement or an upper bound on sparse factorization fill. Runtime monitoring
@@ -15,11 +15,84 @@ except ImportError:  # A missing monitor must not silently disable protection.
 
 
 GIB = 1024 ** 3
+MAX_THREADS = 1024
+CPU_TARGET_FRACTION = 0.8
 MEMORY_BUDGET_ENV = "CAVITY_FEM_MEMORY_BUDGET_BYTES"
 MODEL_VERSION = "physical-memory-heuristic-v1"
 NOTE = ("疎行列のメモリ量を安全側に見積もる概算式です。実測値や厳密な上限ではなく、"
         "形状・行列の接続構造で必要量は変わります。監視してもメモリ不足を完全には防げません。"
         "スワップ容量は予算に含めません。")
+
+
+def cpu_policy():
+    """Return a local recommendation without changing process CPU affinity.
+
+    Use the smallest available logical-count/affinity observation. Optional
+    APIs are probed independently, keeping this compatible with Python 3.9 and
+    platforms without affinity support. Physical cores are informational only.
+    This sets a thread count, not a CPU-utilization limit or cgroup quota.
+    """
+    observations = {}
+
+    def count(query):
+        try:
+            value = query()
+            return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+        except Exception:
+            return None
+
+    def affinity_count(query):
+        def read():
+            cpus = set(query())
+            if any(not isinstance(cpu, int) or isinstance(cpu, bool) or cpu < 0 for cpu in cpus):
+                return None
+            return len(cpus)
+        return count(read)
+
+    logical = count(lambda: os.cpu_count())
+    if logical is not None:
+        observations['os.cpu_count'] = logical
+    elif psutil is not None:
+        logical = count(lambda: psutil.cpu_count(logical=True))
+        if logical is not None:
+            observations['psutil.cpu_count'] = logical
+
+    available = count(lambda: os.process_cpu_count())
+    if available is not None:
+        observations['os.process_cpu_count'] = available
+    affinity = affinity_count(lambda: os.sched_getaffinity(0))
+    if affinity is not None:
+        observations['os.sched_getaffinity'] = affinity
+    physical = None
+    if psutil is not None:
+        physical = count(lambda: psutil.cpu_count(logical=False))
+        affinity = affinity_count(lambda: psutil.Process(os.getpid()).cpu_affinity())
+        if affinity is not None:
+            observations['psutil.Process.cpu_affinity'] = affinity
+
+    available = min(observations.values()) if observations else None
+    detected = available is not None
+    # Integer arithmetic implements floor(0.8*N) without float rounding.
+    threads = min(MAX_THREADS, max(1, 4*available//5)) if detected else 1
+    return {
+        'detected': detected,
+        'logical_cpus': logical,
+        'physical_cores': physical,
+        'available_cpus': available,
+        'recommended_threads': threads,
+        'target_fraction': CPU_TARGET_FRACTION,
+        'max_threads': MAX_THREADS,
+        'method': 'minimum_detected_cpu_limits' if detected else 'fallback_one_thread',
+        'reason': ('検出できた論理CPU数と実行プロセスのCPU制限の最小値から、約80%を初期スレッド数にします。'
+                   if detected else '利用可能なCPU数を取得できないため、初期値を1スレッドにします。'),
+        'observations': observations,
+        'note': 'スレッド数の目安です。CPU使用率を80%に制限する機能ではありません。手動指定と保存済みの値は変更しません。',
+    }
+
+
+def recommended_threads():
+    """Evaluate at configuration creation, rather than at module import."""
+    return cpu_policy()['recommended_threads']
 
 
 class MemoryBudgetExceeded(RuntimeError):

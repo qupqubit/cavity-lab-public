@@ -25,7 +25,8 @@
         <input id="step-file" type="file" accept=".step,.stp,.txt" hidden>
         <button id="example-button" class="button secondary wide" type="button"><span aria-hidden="true">↳</span> 円筒サンプルを読み込む</button>
         <div id="file-summary" class="file-summary" hidden><span class="file-icon">CAD</span><div><strong id="filename"></strong><small id="file-facts"></small></div><span class="check-icon">✓</span></div>
-        <label class="field">解析する領域<select id="geometry-mode"><option value="metal_void">金属モデルから空隙を抽出</option><option value="vacuum_solid" selected>選択ソリッドを電磁場領域にする</option></select><span class="field-help" id="geometry-mode-help">選択したソリッドを電磁場領域として扱います。サンプルは半径 15 mm・高さ 20 mm の真空円筒です。</span></label>
+        <label class="field">解析する領域<select id="geometry-mode"><option value="auto" selected>形状から自動判定</option><option value="metal_void">金属モデルから空隙を抽出（手動）</option><option value="vacuum_solid">選択ソリッドを電磁場領域にする（手動）</option></select><span class="field-help" id="geometry-mode-help">形状から解析する領域を選びます。読み込み後の判定理由を確認し、必要なら手動で変更できます。</span></label>
+        <div id="domain-detection" class="domain-detection" hidden><strong id="domain-selected"></strong><p id="domain-reason"></p></div>
         <label class="field">ソリッド<select id="solid-index"><option value="0">形状の読み込み後に選択</option></select></label>
         <div id="automatic-openings" class="automatic-openings" hidden>
           <label class="check-field"><input id="auto-openings" type="checkbox"> 抽出した開口を自動で外部ポートにする</label>
@@ -40,7 +41,8 @@
         <label class="field">モードの探索<select id="mode-search"><option value="lowest">低い周波数から探索</option><option value="target">目標周波数付近を探索</option></select></label>
         <div class="field-grid"><label class="field">近傍探索の目標 <span class="unit">GHz</span><input id="target-ghz" type="number" value="8" min="0.001" max="1000" step="any" required></label><label class="field">モード数<input id="n-modes" type="number" value="6" min="1" max="12" step="1" required></label></div>
         <div class="field-grid"><label class="field">最大要素寸法 <span class="unit">mm</span><input id="maxh-mm" type="number" value="2" min="0.1" max="30" step="any" required></label><label class="field">要素次数<select id="order"><option value="1">1 次</option><option value="2" selected>2 次</option><option value="3">3 次</option></select></label></div>
-        <label class="field">計算スレッド数<input id="threads" type="number" value="2" min="1" max="16" step="1" required></label>
+        <label class="field">計算スレッド数<input id="threads" type="number" value="1" min="1" max="1024" step="1" required></label>
+        <p id="threads-help" class="help-note">このPCの CPU 情報を確認しています。取得後に推奨スレッド数を表示します。</p>
         <p class="help-note">損失・participationの積分など、並列化に対応する処理に使います。Pythonが1つ表示されていても内部で複数コアを使います。処理によっては1コアで動きます。</p>
         <p class="help-note">小さいメッシュと高い次数は精度と計算時間に影響します。収束を確かめてから結果を採用してください。</p>
         <div id="memory-panel" class="memory-panel" role="status" aria-live="polite">

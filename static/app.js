@@ -4,6 +4,8 @@
   const state = { geometry: null, sourceGeometry: null, antennas: [], antennaPreview: false, result: null, jobId: null, active: false, loading: false, selectedMode: 0, selectedFace: null, poll: null, generation: 0, exampleAvailable: true, startedAt: null, executionLocation: "unknown", fieldCache: new Map(), fieldData: null, fieldGeneration: 0, ports: [], portsJsonDirty: false, estimate: null, estimateDetailParts: [], estimateTimer: null, estimateGeneration: 0, jobEstimate: null, transient: null, historyEstimates: [], transientSamples: new Map(), memoryPlan: null, jobMemory: null, memoryLimitState: "pending", memoryConfig: null };
   Object.assign(state,{memoryGeneration:0,memoryTimer:null,memoryRefreshing:false,memoryError:"",memoryFetchedAt:null,infoGeneration:0,jobStatus:null,jobMemoryAt:null,jobMemoryConfig:null});
   Object.assign(state,{autoOpenings:false,excludedCapFaces:[],autoCandidateHints:[]});
+  Object.assign(state,{geometryRequestedMode:"auto",geometryFromHistory:false});
+  Object.assign(state,{threadsProtected:false,threadsDefaultApplied:false});
   const statuses = { queued: "順番待ち", running: "計算中", completed: "計算完了", failed: "計算エラー", cancelled: "停止済み", ready: "形状読込済み", loading: "形状を確認中" };
   const mappings = { "geometry-mode": "geometry_mode", "solid-index": "solid_index", "maxh-mm": "maxh_mm", "order": "order", "n-modes": "n_modes", "target-ghz": "target_ghz", "threads": "threads", "rs-nohm": "rs_nohm", "bulk-epsr": "bulk_epsr", "bulk-tand": "bulk_tand", "oxide-thickness-nm": "oxide_thickness_nm", "oxide-epsr": "oxide_epsr", "oxide-tand": "oxide_tand", "loss-model": "loss_model", "temperature-k": "temperature_k", "photon-number": "photon_number", "tls-nc": "tls_nc", "tls-beta": "tls_beta", "q-res": "q_res" };
   Object.assign(mappings, {"analysis-mode":"analysis_mode","mode-search":"mode_search","spectrum-start-ghz":"spectrum_start_ghz","spectrum-stop-ghz":"spectrum_stop_ghz","spectrum-points":"spectrum_points","field-resolution":"field_resolution"});
@@ -121,14 +123,28 @@
       state.memoryPlan=data.memory;state.memoryConfig={order,n_modes};state.memoryFetchedAt=data.memory.sampled_at||Date.now()/1000;state.memoryLimitState="ready";renderMemory();return true;
     }catch(e){if(generation===state.memoryGeneration){state.memoryLimitState="unavailable";state.memoryError=e.message;renderMemory();}return false;}
   }
+  function protectThreadSelection(){state.threadsProtected=true;}
+  function applyCpuPolicy(policy){
+    const maximum=Number(policy?.max_threads),recommended=Number(policy?.recommended_threads),available=Number(policy?.available_cpus);
+    $("threads").max=String(Number.isInteger(maximum)&&maximum>=1&&maximum<=1024?maximum:1024);
+    if(policy?.detected!==true||!Number.isInteger(available)||available<1||!Number.isInteger(recommended)||recommended<1||recommended>Number($("threads").max)){
+      setText("threads-help","CPU 情報を取得できません。スレッド数は手動で指定できます。");return;
+    }
+    const fraction=num(policy.target_fraction)&&policy.target_fraction>0&&policy.target_fraction<=1?Number(policy.target_fraction):.8;
+    setText("threads-help","このPC：利用可能 "+available+" スレッド · 推奨 "+recommended+"（"+fmt(fraction*100,0)+"% を目安）。実際の CPU 使用率は処理によって変わります。");
+    if(!state.threadsDefaultApplied&&!state.threadsProtected&&!state.active&&!state.jobId){
+      $("threads").value=String(recommended);state.threadsDefaultApplied=true;scheduleEstimate(false);
+    }
+  }
   async function loadServerInfo(){
     const generation=++state.infoGeneration;
     try {
       const info=await api("/api/info",{cache:"no-store",timeoutMs:12000});if(generation!==state.infoGeneration)return false;
       if(!state.memoryPlan&&info.memory&&typeof info.memory==="object")state.memoryPlan=info.memory;
+      applyCpuPolicy(info.cpu);
       renderMemory();updateExecutionLocation(info);setText("solver-label",(info.solver||"FEM")+" "+(info.version||""));setText("app-version",info.app_version?"v"+info.app_version:"");
       $("app-version").title="画面ファイル: "+(document.documentElement.dataset.assetVersion||"未確認");state.exampleAvailable=info.example_available!==false;syncButtons();return true;
-    }catch(e){if(generation===state.infoGeneration){updateExecutionLocation();setText("solver-label","サーバー接続エラー");notice("ローカルサーバーに接続できません。起動状態を確認してください。 "+e.message,true);}return false;}
+    }catch(e){if(generation===state.infoGeneration){applyCpuPolicy(null);updateExecutionLocation();setText("solver-label","サーバー接続エラー");notice("ローカルサーバーに接続できません。起動状態を確認してください。 "+e.message,true);}return false;}
   }
   async function refreshMemory(){
     if(state.memoryRefreshing)return;
@@ -198,12 +214,31 @@
     $("qres-field").hidden=model!=="tls_qres";
   }
   function updateGeometryHelp() {
-    setText("geometry-mode-help",$("geometry-mode").value==="metal_void" ? "金属の外接直方体から金属を引いた空隙です。開口は人工キャップで閉じられます。面一覧で確認してください。" : "選択したソリッド全体を電磁場の領域とします。金属の体積を空洞として誤選択しないよう確認してください。");
+    const mode=$("geometry-mode").value;
+    setText("geometry-mode-help",mode==="auto"?"形状から、金属内の空隙を抽出するか、ソリッド自体を解析するか選びます。読み込み後の領域と判定理由を確認し、必要なら手動で変更できます。":mode==="metal_void"?"金属の外接直方体から金属を引いた空隙です。開口は人工キャップで閉じられます。面一覧で確認してください。":"選択したソリッド全体を電磁場の領域とします。金属の体積を空洞として誤選択しないよう確認してください。");
+    renderDomainDetection();
+  }
+  function resolvedGeometryMode(){
+    const mode=state.sourceGeometry?.mode||state.geometry?.mode;
+    return ["metal_void","vacuum_solid"].includes(mode)?mode:$("geometry-mode").value==="metal_void"?"metal_void":"vacuum_solid";
+  }
+  function renderDomainDetection(){
+    const geometry=state.sourceGeometry||state.geometry;
+    $("domain-detection").hidden=!geometry;
+    if(!geometry)return;
+    const detection=geometry.domain_detection,mode=resolvedGeometryMode();
+    setText("domain-selected","使用する領域："+(mode==="metal_void"?"金属から抽出した空隙":"ソリッド自体")+" · 領域 "+(Number(geometry.selected??detection?.selected_index??0)+1));
+    const reason=state.geometryFromHistory?"保存済みの領域指定を復元しています。自動判定はやり直しません。":state.geometryRequestedMode==="auto"?(detection?.reason||"形状から領域を選択しました。解析対象と一致するかプレビューを確認してください。"):(detection?.requested_mode!=="auto"&&detection?.reason)||"手動で指定した領域です。";
+    setText("domain-reason",reason+(state.geometryRequestedMode==="auto"&&detection?.confidence==="low"?" 判定の確度は低めです。必要なら手動で変更してください。":""));
+  }
+  function verifyGeometryMode(geometry,requested){
+    if(!["metal_void","vacuum_solid"].includes(geometry.mode))throw new Error("解析領域の判定結果を取得できませんでした。");
+    if(requested!=="auto"&&geometry.mode!==requested)throw new Error("指定した解析領域を生成できませんでした。領域の選択を確認してください。");
   }
   function geometryWarnings(geo) { return [...(Array.isArray(geo.warnings)?geo.warnings:[]), ...(geo.warning?[geo.warning]:[])]; }
   function applyGeometry(geo) {
     state.geometry=geo;
-    if(geo.mode) $("geometry-mode").value=geo.mode;
+    $("geometry-mode").value=state.geometryRequestedMode;
     updateGeometryHelp();
     const solids=Array.isArray(geo.solids)?geo.solids:[];
     const faces=Array.isArray(geo.faces)?geo.faces:[];
@@ -242,26 +277,32 @@
   }
   async function loadGeometry(file) {
     if(state.loading || state.active) return;
+    const requestedMode=$("geometry-mode").value,previousMode=state.geometryRequestedMode;
     state.loading=true;startTransient("STEP 形状の読み込み",30,180); syncButtons(); setStatus("loading"); $("notice").hidden=true;
     try {
       let geo;
-      if(file) { const form=new FormData(); form.append("file",file); form.append("geometry_mode",$("geometry-mode").value); geo=await api("/api/inspect",{method:"POST",body:form}); }
-      else geo=await api("/api/example",{method:"POST"});
+      if(file) { const form=new FormData(); form.append("file",file); form.append("geometry_mode",requestedMode); geo=await api("/api/inspect",{method:"POST",body:form}); }
+      else geo=await api("/api/example",jsonPost({geometry_mode:requestedMode}));
+      verifyGeometryMode(geo,requestedMode);state.geometryRequestedMode=requestedMode;state.geometryFromHistory=false;
       state.ports=[];$("cap-review").hidden=true;$("sweep-enabled").checked=false;state.antennas=[];state.antennaPreview=false;state.sourceGeometry=geo;configureNewOpenings(geo);renderAntennas();
       applyGeometry(geo); setStatus("ready");
-    } catch(e) { notice(e.message,true); setStatus("failed"); }
+    } catch(e) { $("geometry-mode").value=previousMode;updateGeometryHelp();notice(e.message,true); setStatus("failed"); }
     finally { state.loading=false;endTransient(); syncButtons(); $("step-file").value="";scheduleEstimate(); }
   }
   async function reinspect(changeMode=false) {
     updateGeometryHelp();
     if(!state.geometry || state.loading || state.active) return;
-    const original=state.geometry;
+    const original=state.sourceGeometry||state.geometry,previousMode=state.geometryRequestedMode;
+    const requestedMode=!changeMode&&$("geometry-mode").value==="auto"?resolvedGeometryMode():$("geometry-mode").value;
+    const selectedIndex=changeMode?0:Number($("solid-index").value);
+    $("geometry-mode").value=requestedMode;
     state.loading=true;startTransient("解析領域の確認",30,180);syncButtons();setStatus("loading");
     try {
-      const geo=await api("/api/geometries/"+encodeURIComponent(original.id)+"/inspect",jsonPost({geometry_mode:$("geometry-mode").value,solid_index:changeMode?0:Number($("solid-index").value)}));
+      const geo=await api("/api/geometries/"+encodeURIComponent(original.id)+"/inspect",jsonPost({geometry_mode:requestedMode,solid_index:selectedIndex}));
+      verifyGeometryMode(geo,requestedMode);state.geometryRequestedMode=requestedMode;state.geometryFromHistory=false;
       state.sourceGeometry=geo;state.antennas=[];state.ports=[];state.antennaPreview=false;$("sweep-enabled").checked=false;configureNewOpenings(geo);renderAntennas();applyGeometry(geo);$("cap-review").hidden=true;setStatus("ready");
       notice(geometryWarnings(geo).concat(["領域の変更に伴い、ポート面の設定をクリアしました。"]).join(" "));
-    } catch(e) { $("geometry-mode").value=original.mode || "vacuum_solid"; $("solid-index").value=String(original.selected??0);updateGeometryHelp();notice(e.message,true);setStatus("failed"); }
+    } catch(e) { $("geometry-mode").value=previousMode; $("solid-index").value=String(original.selected??0);updateGeometryHelp();notice(e.message,true);setStatus("failed"); }
     finally {state.loading=false;endTransient();syncButtons();scheduleEstimate();}
   }
   function selectFace(id) {
@@ -275,7 +316,7 @@
   function openingCandidates(){
     const source=state.sourceGeometry||(!state.antennaPreview?state.geometry:null);
     if(source&&Array.isArray(source.faces))return source.mode==="metal_void"?source.faces.filter(f=>f.artificial_cap):[];
-    return $("geometry-mode").value==="metal_void"?state.autoCandidateHints:[];
+    return resolvedGeometryMode()==="metal_void"?state.autoCandidateHints:[];
   }
   function manualPort(port){const {internal_auto,...manual}=port;return {...manual,faces:[...port.faces]};}
   function syncAutomaticPorts(){
@@ -395,6 +436,7 @@
     }
     const config={geometry_id:state.geometry?.id??null,all_artificial_caps:state.autoOpenings,excluded_artificial_cap_faces:[...state.excludedCapFaces].sort((a,b)=>a-b),ports:readPorts(),antennas:readAntennas(),spectrum_enabled:$("spectrum-enabled").checked,driven_port:$("driven-port").value||null};
     for(const [id,key] of Object.entries(mappings)) config[key]=["geometry-mode","loss-model","mode-search","analysis-mode"].includes(id)?$(id).value:$(id).value===""?null:Number($(id).value);
+    config.geometry_mode=resolvedGeometryMode();config.solid_index=state.sourceGeometry?.selected??state.geometry?.selected??config.solid_index??0;
     if(config.analysis_mode==="all_openings_qc")config.spectrum_enabled=false;
     if(config.spectrum_enabled && config.spectrum_stop_ghz<=config.spectrum_start_ghz)throw new Error("周波数スキャンの終了値は開始値より大きくしてください。");
     config.antenna_sweep=null;
@@ -414,8 +456,11 @@
   }
   function restoreConfig(config,resultGeometry=null) {
     if(!config)return;
+    protectThreadSelection();
+    state.geometryRequestedMode=config.geometry_mode||"vacuum_solid";state.geometryFromHistory=true;
     state.sourceGeometry=null;state.geometry=config.geometry_id?{id:config.geometry_id,mode:config.geometry_mode,selected:config.solid_index}:null;state.autoCandidateHints=[];
     for(const [id,key] of Object.entries(mappings))if(key in config)$(id).value=config[key]??"";
+    $("geometry-mode").value=state.geometryRequestedMode;updateGeometryHelp();
     state.autoOpenings=config.all_artificial_caps===true;
     state.excludedCapFaces=[...(config.excluded_artificial_cap_faces||[])];
     $("analysis-mode").value=config.analysis_mode||"resonance";
@@ -453,6 +498,7 @@
   async function startJob() {
     if(!state.geometry || state.active || state.loading)return;
     try {
+      protectThreadSelection();
       const config=collectConfig();
       state.active=true;clearTimeout(state.estimateTimer);state.estimateGeneration++;setText("estimate-title","実行中の解析");setText("estimate-duration","進行状況に残り時間を表示");setText("estimate-detail","所要時間は最新の処理状況から更新されます。");syncButtons();$("notice").hidden=true;
       const job=await api("/api/jobs",jsonPost(config));
@@ -463,6 +509,7 @@
     } catch(e) {state.active=false;syncButtons();scheduleEstimate();notice(e.message,true);}
   }
   function renderJob(job) {
+    protectThreadSelection();
     state.jobId=job.id;state.active=["queued","running"].includes(job.status);
     state.jobStatus=job.status;const jobMemory=job.memory||job.result?.memory_policy;
     state.jobMemory=jobMemory&&typeof jobMemory==="object"?jobMemory:null;
@@ -498,6 +545,7 @@
   async function openJob(id) {
     if(state.active && state.jobId!==id){notice("現在の計算が終わってから別の履歴を開いてください。");return;}
     if(state.loading)return;
+    protectThreadSelection();
     clearTimeout(state.poll);state.generation++;
     try {
       const job=await api("/api/jobs/"+encodeURIComponent(id));
@@ -878,6 +926,8 @@
   $("geometry-mode").addEventListener("change",()=>reinspect(true));
   $("solid-index").addEventListener("change",()=>reinspect(false));
   $("loss-model").addEventListener("change",updateLossModel);
+  $("threads").addEventListener("input",protectThreadSelection);
+  $("threads").addEventListener("change",protectThreadSelection);
   $("run-button").addEventListener("click",startJob);
   $("cancel-button").addEventListener("click",async()=>{if(!state.active)return;$("cancel-button").disabled=true;try{renderJob(await api("/api/jobs/"+encodeURIComponent(state.jobId)+"/cancel",{method:"POST"}));clearTimeout(state.poll);state.generation++;refreshJobs();if(!state.active)scheduleEstimate();}catch(e){notice(e.message,true);}finally{$("cancel-button").disabled=false;}});
   $("ports-json").addEventListener("input",()=>{state.portsJsonDirty=true;setText("ports-json-state","未適用 · 計算には上のカードを使用");});

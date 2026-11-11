@@ -10,9 +10,10 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from typing import Optional
 from urllib.parse import quote
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Query
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Query, Body
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -22,7 +23,7 @@ from .geometry import inspect_step, load_domain, preview
 from .antennas import build_antennas
 from . import __version__
 from .estimates import make_plan, estimate, read_json, write_json
-from .resources import memory_policy, runtime_memory_status
+from .resources import memory_policy, runtime_memory_status, cpu_policy
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = Path(os.environ.get("CAVITY_FEM_DATA", str(ROOT / "data"))).resolve()
@@ -171,14 +172,17 @@ def run_worker(folder, source):
             return
         save_state(folder, status="running", stage="計算を開始しています", started_at=time.time())
     try:
-        policy = memory_policy(read_json(folder/'config.json', {}))
+        config = SolveConfig(**read_json(folder/'config.json', {}))
+        policy = memory_policy(config.model_dump())
         save_state(folder, memory=policy)
         if policy['status'] != 'ok':
             if not policy.get('detected'):
                 raise RuntimeError("このPCのメモリ情報を取得できないため、計算を開始できません。起動ファイルを開き直して監視機能の導入を確認してください。")
             raise RuntimeError("計算用の空きメモリが不足しています。他のアプリや計算を終了して再試行してください。メッシュ設定欄にこのPCのメモリ量を表示しています。")
         with (folder / "solver.log").open("w") as log:
-            env = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="2", PYTHONUNBUFFERED="1", PYTHONUTF8="1")
+            # NGSolve receives the same count via SetNumThreads. Keep BLAS
+            # serial so nested dense operations do not multiply worker counts.
+            env = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS=str(config.threads), PYTHONUNBUFFERED="1", PYTHONUTF8="1")
             env['CAVITY_FEM_MEMORY_BUDGET_BYTES'] = str(policy['budget_bytes'])
             # Cancellation either prevents spawning or sees the registered
             # child; it cannot fall into a gap between Popen and registration.
@@ -234,7 +238,7 @@ def info():
     import ngsolve
     return {"solver": "NGSolve", "version": ngsolve.__version__, "example_available": True,
             "local_only": True, "app_version": __version__,
-            "memory": memory_policy(),
+            "memory": memory_policy(), "cpu": cpu_policy(),
             "sample": {"name": "Circular vacuum cavity", "geometry_mode": "vacuum_solid",
                        "radius_mm": 15, "height_mm": 20,
                        "provenance": "Generated from an analytic cylinder; no supplied CAD"}}
@@ -260,7 +264,7 @@ def estimate_analysis(config: SolveConfig):
     return {"estimate": estimate(plan, queue_wait=wait), "memory": memory_policy(config)}
 
 
-def import_geometry(content, filename, mode="vacuum_solid"):
+def import_geometry(content, filename, mode="auto"):
     if len(content) > 40*1024*1024:
         raise HTTPException(413, "STEPは40MB以下にしてください。")
     if b"ISO-10303-21" not in content[:512]:
@@ -273,28 +277,23 @@ def import_geometry(content, filename, mode="vacuum_solid"):
     (folder/"metadata.json").write_text(json.dumps({"filename": Path(filename).name}, ensure_ascii=False))
     try:
         with geometry_lock:
-            try:
-                details = inspect_step(path, mode)
-            except (ValueError, IndexError):
-                if mode != "metal_void":
-                    raise
-                details = inspect_step(path, "vacuum_solid")
-                details["warnings"].append("外接直方体から空隙を抽出できなかったため、入力ソリッドを表示しています。真空領域であることを確認してください。")
+            details = inspect_step(path, mode)
     except Exception as exc:
-        raise HTTPException(422, "STEPの空隙抽出に失敗しました: %s" % exc)
+        raise HTTPException(422, "STEPの解析領域を読み込めませんでした: %s" % exc)
     details.update(id=gid, filename=Path(filename).name)
     return details
 
 
 @app.post("/api/inspect")
-async def inspect(file: UploadFile = File(...), geometry_mode: str = Form("vacuum_solid")):
+async def inspect(file: UploadFile = File(...), geometry_mode: str = Form("auto")):
     content = await file.read(40*1024*1024+1)
     return await __import__("asyncio").to_thread(import_geometry, content, file.filename or "input.step", geometry_mode)
 
 
 @app.post("/api/example")
-def example():
-    return import_geometry((ROOT / "examples/cylinder-vacuum.step").read_bytes(), "cylinder-vacuum.step", "vacuum_solid")
+def example(selection: Optional[dict] = Body(default=None)):
+    mode = (selection or {}).get("geometry_mode", "auto")
+    return import_geometry((ROOT / "examples/cylinder-vacuum.step").read_bytes(), "cylinder-vacuum.step", mode)
 
 
 @app.post("/api/geometries/{gid}/inspect")
@@ -302,7 +301,7 @@ def reinspect(gid: str, selection: dict):
     path = geometry_path(gid)
     try:
         with geometry_lock:
-            details = inspect_step(path, selection.get("geometry_mode", "vacuum_solid"), int(selection.get("solid_index", 0)))
+            details = inspect_step(path, selection.get("geometry_mode", "auto"), int(selection.get("solid_index", 0)))
         details.update(id=gid, filename=json.loads((path.parent/"metadata.json").read_text())["filename"])
         return details
     except Exception as exc:

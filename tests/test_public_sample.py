@@ -63,13 +63,15 @@ def test_public_api_sample_info_and_health(tmp_path, monkeypatch):
     with TestClient(api.app, base_url='http://127.0.0.1:8768') as client:
         health = client.get('/api/health').json()
         assert health['app'] == 'cavity-lab-public'
-        assert health['version'] == __version__ == '0.1.5'
+        assert health['version'] == __version__ == '0.1.6'
         assert health['development'] is False
         info = client.get('/api/info').json()
-        assert set(info) == {'solver', 'version', 'example_available', 'local_only', 'app_version', 'sample', 'memory'}
+        assert set(info) == {'solver', 'version', 'example_available', 'local_only', 'app_version', 'sample', 'memory', 'cpu'}
+        assert info['cpu']['recommended_threads'] >= 1
         assert info['memory']['model']['swap_included'] is False
         sample = client.post('/api/example').json()
         assert sample['mode'] == 'vacuum_solid'
+        assert sample['domain_detection']['requested_mode'] == 'auto'
         assert sample['filename'] == 'cylinder-vacuum.step'
         assert sample['volume_mm3'] == pytest.approx(math.pi*15**2*20)
         assert sample['preview']['triangles']

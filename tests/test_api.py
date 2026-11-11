@@ -81,11 +81,11 @@ def read_status(folder):
     return json.loads((folder / "state.json").read_text())["status"]
 
 
-def test_upload_vacuum_box_and_explicit_fallback(isolated_api):
+def test_upload_auto_vacuum_box_and_preserve_manual_choice(isolated_api):
     client, data = isolated_api
     step = data / "vacuum.step"
     Box(Pnt(0, 0, 0), Pnt(10, 10, 10)).WriteStep(str(step))
-    for mode in ("vacuum_solid", "metal_void"):
+    for mode in ("vacuum_solid", "auto"):
         response = client.post("/api/inspect", data={"geometry_mode": mode},
                                files={"file": ("vacuum.step", step.read_bytes(), "application/octet-stream")})
         assert response.status_code == 200
@@ -93,8 +93,39 @@ def test_upload_vacuum_box_and_explicit_fallback(isolated_api):
         assert details["mode"] == "vacuum_solid"
         assert details["volume_mm3"] == pytest.approx(1000)
         assert len(details["faces"]) == 6
-        if mode == "metal_void":
-            assert any("真空領域" in warning for warning in details["warnings"])
+    # Manual extraction must not silently change the user's interpretation.
+    response = client.post("/api/inspect", data={"geometry_mode": "metal_void"},
+                           files={"file": ("vacuum.step", step.read_bytes())})
+    assert response.status_code == 422
+
+
+def test_auto_upload_selects_cavity_and_manual_reinspect_is_respected(isolated_api):
+    client, data = isolated_api
+    path = data / "generated-shell.step"
+    shell = Box(Pnt(0, 0, 0), Pnt(12, 12, 12)) - Box(Pnt(2, 2, 2), Pnt(10, 10, 10))
+    shell.WriteStep(str(path))
+    uploaded = client.post("/api/inspect", files={"file": (path.name, path.read_bytes())})
+    assert uploaded.status_code == 200
+    geometry = uploaded.json()
+    assert geometry["mode"] == "metal_void"
+    assert geometry["volume_mm3"] == pytest.approx(512)
+    assert geometry["domain_detection"]["requested_mode"] == "auto"
+    url = "/api/geometries/%s/inspect" % geometry["id"]
+    manual = client.post(url, json={"geometry_mode": "vacuum_solid", "solid_index": 0})
+    assert manual.status_code == 200
+    assert manual.json()["mode"] == "vacuum_solid"
+    assert manual.json()["volume_mm3"] == pytest.approx(1216)
+    again = client.post(url, json={"geometry_mode": "auto", "solid_index": 999})
+    assert again.status_code == 200
+    assert again.json()["mode"] == "metal_void"
+    assert again.json()["selected"] == geometry["selected"]
+
+
+def test_info_reports_local_cpu_recommendation(isolated_api, monkeypatch):
+    client, _ = isolated_api
+    cpu = {"detected": True, "available_cpus": 12, "recommended_threads": 9}
+    monkeypatch.setattr(api, "cpu_policy", lambda: cpu)
+    assert client.get("/api/info").json()["cpu"] == cpu
 
 
 def test_rejects_invalid_file_and_remote_origin(isolated_api):
@@ -296,6 +327,9 @@ def test_queued_worker_receives_fresh_memory_budget(isolated_api, monkeypatch):
     client, data = isolated_api
     original = client.post("/api/estimate", json={}).json()["memory"]
     folder, _ = new_job(data)
+    saved = json.loads((folder / "config.json").read_text())
+    saved["threads"] = 7
+    (folder / "config.json").write_text(json.dumps(saved))
     fresh = known_memory_policy(available_bytes=7 * GIB, budget_bytes=3 * GIB, dof_limit=110000)
     checked_configs = []
     captured = {}
@@ -324,6 +358,8 @@ def test_queued_worker_receives_fresh_memory_budget(isolated_api, monkeypatch):
     assert checked_configs == [json.loads((folder / "config.json").read_text())]
     assert fresh["budget_bytes"] != original["budget_bytes"]
     assert captured["env"]["CAVITY_FEM_MEMORY_BUDGET_BYTES"] == str(fresh["budget_bytes"])
+    assert captured["env"]["OMP_NUM_THREADS"] == "7"
+    assert captured["env"]["OPENBLAS_NUM_THREADS"] == "1"
     job = client.get("/api/jobs/%s" % folder.name).json()
     assert job["status"] == "completed"
     assert job["memory"] == fresh
