@@ -43,7 +43,7 @@
     state.executionLocation=!connected?"unknown":local?"local":"server";
     setText("runtime-label",!connected?"実行先に未接続":local?"このPCで計算・保存":"接続先のPCで計算・保存");
     $("runtime-dot").className="local-dot "+(!connected?"checking":local?"":"remote");
-    $("runtime-location").title=!connected?"このPCでアプリを起動すると、ブラウザから計算を操作できます。":local?"ブラウザで操作し、このPCのソルバーで計算します。STEP と解析結果もこのPCに保存します。":"ブラウザの接続先で計算し、STEP と解析結果を保存します。ブラウザが動くPCとは異なる場合があります。";
+    $("runtime-location").title=!connected?"このPCでアプリを起動すると、計算を操作できます。":local?(info.desktop_ui?"このアプリで操作し、このMacで計算します。STEP と解析結果もこのMacに保存します。":"ブラウザで操作し、このPCのソルバーで計算します。STEP と解析結果もこのPCに保存します。"):"接続先のPCで計算し、STEP と解析結果を保存します。画面を開いているPCとは異なる場合があります。";
     syncButtons();
   }
   async function api(path, options={}) {

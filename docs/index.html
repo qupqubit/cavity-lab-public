@@ -8,67 +8,60 @@
   <title>キャビティ解析の起動方法</title>
   <style>
     :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#202b33;background:#fff;line-height:1.8;font-size:16px}
-    *{box-sizing:border-box}body{margin:0}main{max-width:840px;margin:0 auto;padding:36px 24px 48px}h1{font-size:25px;line-height:1.5;margin:0 0 18px;font-weight:650}h2{font-size:19px;margin:0 0 12px;font-weight:600}h3{font-size:16px;margin:0 0 6px;font-weight:600}p{margin:0 0 14px}a{color:#185980;text-underline-offset:3px}a:focus-visible{outline:3px solid #90c5df;outline-offset:4px}section{padding:26px 0;border-top:1px solid #dbe1e5;margin-top:25px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin:21px 0}.button{display:inline-block;border:1px solid #465965;border-radius:5px;padding:10px 17px;text-decoration:none;font-weight:600;font-size:15px;color:#253c4a}.button.primary{background:#253c4a;color:#fff}.note{font-size:14px;color:#56636c}ol{padding-left:24px;margin:0}li{padding-left:5px;margin:0 0 20px}li:last-child{margin-bottom:0}li p{margin:0}.launcher-list{display:grid;grid-template-columns:100px 1fr;gap:7px 12px;margin:11px 0}.launcher-list dt{font-weight:600}.launcher-list dd{margin:0}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;background:#f2f4f5;padding:2px 5px;border-radius:3px}.local-address{overflow-wrap:anywhere}footer{margin-top:30px;padding-top:18px;border-top:1px solid #dbe1e5;font-size:14px}footer a{margin-right:20px}@media(max-width:520px){main{padding:25px 19px 35px}h1{font-size:22px}.actions{flex-direction:column;align-items:stretch}.button{text-align:center}.launcher-list{grid-template-columns:80px 1fr}}
+    *{box-sizing:border-box}body{margin:0}main{max-width:840px;margin:0 auto;padding:36px 24px 48px}h1{font-size:25px;line-height:1.5;margin:0 0 18px;font-weight:650}h2{font-size:19px;margin:0 0 12px;font-weight:600}h3{font-size:16px;margin:0 0 6px;font-weight:600}p{margin:0 0 14px}a{color:#185980;text-underline-offset:3px}a:focus-visible{outline:3px solid #90c5df;outline-offset:4px}section{padding:26px 0;border-top:1px solid #dbe1e5;margin-top:25px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin:21px 0}.button{display:inline-block;border:1px solid #465965;border-radius:5px;padding:10px 17px;text-decoration:none;font-weight:600;font-size:15px;color:#253c4a}.button.primary{background:#253c4a;color:#fff}.note{font-size:14px;color:#56636c}ol{padding-left:24px;margin:0}li{padding-left:5px;margin:0 0 20px}li:last-child{margin-bottom:0}li p{margin:0}.launcher-list{display:grid;grid-template-columns:100px 1fr;gap:7px 12px;margin:11px 0}.launcher-list dt{font-weight:600}.launcher-list dd{margin:0}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;background:#f2f4f5;padding:2px 5px;border-radius:3px}.local-address,code{overflow-wrap:anywhere}footer{margin-top:30px;padding-top:18px;border-top:1px solid #dbe1e5;font-size:14px}footer a{margin-right:20px}@media(max-width:520px){main{padding:25px 19px 35px}h1{font-size:22px}.actions{flex-direction:column;align-items:stretch}.button{text-align:center}.launcher-list{grid-template-columns:80px 1fr}}
   </style>
 </head>
 <body>
 <main>
-  <h1>キャビティ解析の起動方法</h1>
-  <p>STEP 形状の共振周波数、Qi、各ポートの Qc、participation、電場分布をブラウザで確認します。<strong>計算とデータ保存は、このブラウザを使っているPCで行います。</strong></p>
-  <p>このページは配布と起動手順の案内です。FEM 解析には、以下のアプリを同じPCで起動する必要があります。Git のインストールやリポジトリの clone は不要です。</p>
+  <h1>キャビティ FEM：Macアプリの起動方法</h1>
+  <p>STEP 形状から共振周波数、Qi、各ポートの Qc、participation、電場分布、同軸ポートの S11 を求めます。<strong>計算とデータ保存は、アプリを起動したMacで行います。</strong></p>
+  <p>v0.1.7 の Mac アプリは、解析画面・ファイル選択・結果保存・ログ閲覧をアプリ内で行います。外部ブラウザ、ターミナル、Git、clone は不要です。</p>
   <div class="actions">
-    <a class="button primary" href="https://github.com/qupqubit/cavity-lab-public/releases/latest/download/cavity-lab-public.zip" rel="noreferrer">アプリ一式をダウンロード（ZIP）</a>
-    <a class="button" href="http://127.0.0.1:8768/" target="_blank" rel="noreferrer">起動済みの解析画面を開く</a>
+    <a class="button primary" href="https://github.com/qupqubit/cavity-lab-public/releases/latest/download/Cavity-Lab-macOS.zip" rel="noreferrer">Macアプリをダウンロード（ZIP）</a>
   </div>
-  <p class="note">対応：macOS / Windows。Python 3.9〜3.12 が必要です。初回の計算環境の準備にはインターネット接続を使用します。</p>
+  <p class="note">macOS 12以降・Apple Silicon / IntelのUniversalアプリ。Python同梱。Intel Macでの実機動作は未検証です。初回のFEMライブラリ準備にはインターネット接続を使用します。</p>
   <section aria-labelledby="first-title">
-    <h2 id="first-title">初回の準備</h2>
+    <h2 id="first-title">初回の起動</h2>
     <ol>
-      <li><h3>Python を用意する</h3><p>Python 3.9〜3.12 を使用します（3.12 推奨）。未導入の場合は、<a href="https://www.python.org/downloads/" rel="noreferrer">Python の公式サイト</a>からインストールしてください。Windows では Python Launcher もインストールしてください。</p></li>
-      <li><h3>ZIP をダウンロードして、全体を展開する</h3><p>上のボタンからアプリ一式を取得し、ZIP をすべて展開してください。起動用ファイルだけを取り出さず、同梱のフォルダとファイルを一緒に置きます。</p></li>
-      <li><h3>このPCで起動用ファイルを開く</h3><dl class="launcher-list"><dt>macOS</dt><dd>展開したフォルダ内の <code>launch.command</code></dd><dt>Windows</dt><dd>展開したフォルダ内の <code>launch.bat</code></dd></dl><p>初回は必要な計算用ライブラリを準備します。処理が終わるまで待ち、表示された解析画面を使ってください。Macで「Appleは検証できませんでした」と表示された場合は、<a href="#mac-warning">以下の警告への対処</a>を確認してください。</p></li>
-      <li><h3>STEP を読み込んで解析する</h3><p>解析画面に STEP を読み込み、領域・材料・境界条件を確認して実行します。「円筒サンプルを読み込む」で、半径 15 mm・高さ 20 mm の真空円筒も試せます。材料損失や同軸寸法の初期値は例なので、対象に合わせて変更してください。</p></li>
+      <li><h3>ZIPを展開してアプリを開く</h3><p>ダウンロードしたZIP全体を展開し、<code>Cavity Lab.app</code> を「アプリケーション」フォルダなどに移動して開きます。Appleの確認警告が出た場合は、<a href="#mac-warning">下の案内</a>を確認してください。</p></li>
+      <li><h3>計算環境の準備を待つ</h3><p>必要なFEMライブラリを初回に導入します。数分かかることがあるため、アプリの状態表示を確認して待ってください。準備後は、同じウィンドウに解析画面が表示されます。</p></li>
+      <li><h3>STEPを読み込んで計算する</h3><p>STEPを選び、判定された解析領域と材料・境界条件を確認して実行します。「円筒サンプルを読み込む」も使えます。材料損失や同軸寸法の初期値は例なので、対象に合わせて変更してください。</p></li>
     </ol>
-  </section>
-  <section id="mac-warning" aria-labelledby="mac-warning-title">
-    <h2 id="mac-warning-title">Macで「launch.command は開いていません」と表示されたら</h2>
-    <p>この配布版の起動ファイルは、AppleのDeveloper IDによる署名・公証を受けていません。そのため、別のMacへダウンロードして最初に開く際に、Gatekeeperが実行を止める場合があります。「Appleはマルウェアが含まれていないことを検証できませんでした」という警告は、マルウェアが検出されたという通知とは異なります。ただし、安全性が保証されたという意味でもありません。</p>
-    <p><a href="https://github.com/qupqubit/cavity-lab-public/releases" rel="noreferrer">このプロジェクトの配布ページ</a>から取得したファイルであることを確認し、実行を許可する場合は次の操作を行ってください。</p>
-    <ol>
-      <li>警告画面で「完了」を押します。</li>
-      <li>Appleメニューから「システム設定」→「プライバシーとセキュリティ」を開き、下へスクロールします。</li>
-      <li><code>launch.command</code> がブロックされた旨の表示の横にある「このまま開く」を選びます。</li>
-      <li>認証と確認を求められたら内容を確認して「開く」を選びます。ターミナルが開き、初回準備が始まります。</li>
-    </ol>
-    <p class="note">「このまま開く」が出ない場合は、起動ファイルをもう一度開いて警告を閉じ、設定を確認してください。組織が管理するMacでは管理者の制限がある場合があります。Mac全体のGatekeeperを無効にする操作や、一括の隔離属性削除は不要です。<a href="https://support.apple.com/ja-jp/102445" rel="noreferrer">Apple公式の説明</a></p>
-    <p class="note">これは実行権限のエラーとは別です。「適切なアクセス権がない」と表示される場合の手順はREADMEを確認してください。案内を更新した配布ZIPでも、Appleの署名・公証が追加されたわけではありません。</p>
-  </section>
-  <section aria-labelledby="next-title">
-    <h2 id="next-title">次回から使うとき</h2>
-    <p>展開したフォルダ内の起動用ファイルを開いてから、<a class="local-address" href="http://127.0.0.1:8768/" target="_blank" rel="noreferrer">このPCの解析画面（127.0.0.1:8768）</a>に接続します。利用中は、起動時に開いたターミナルまたはコマンド画面を閉じずに残してください。</p>
-    <p class="note">「起動済みの解析画面を開く」は、動いているローカルアプリへ接続するリンクです。ブラウザのリンクからPC上のプログラムを自動起動することはできません。接続できない場合は、先に起動用ファイルを開いてください。</p>
+    <p class="note">次回からはアプリを開くだけで利用できます。通常の計算はローカルで実行します。更新でライブラリの追加が必要な場合は、再びインターネット接続を使うことがあります。</p>
   </section>
   <section aria-labelledby="storage-title">
-    <h2 id="storage-title">計算と保存先</h2>
-    <p>解析はアプリを起動したPCのソルバーで実行します。STEP、設定、計算結果はそのPCに保存され、画面の「このPCで計算・保存」で接続状態を確認できます。別のPCで使う場合は、そのPCでもアプリをダウンロードして起動してください。</p>
-    <p>v0.1.2では、そのPCのメモリ容量と空き容量に応じて計算規模の上限を設定し、計算中も使用量を監視します。メッシュ設定欄で検出値を確認できます。更新時は旧版の計算と起動用ターミナルを終了し、新しいZIPを別フォルダに展開して起動してください。</p>
-    <p>v0.1.3では、損失・participationなどの後処理にも指定した計算スレッド数を適用します。1つのPythonプロセス内で複数コアを利用します。直列処理も残るため、処理全体の速度は形状・設定・PCによって変わります。</p>
-    <p>v0.1.4では、「現在のPC・設定のメモリ」と、選択した計算に記録されたメモリ診断を分けて表示します。「再取得」は、STEPが未選択でも、材料・境界など他の設定が未入力や不正でも、次数とモード数が有効なら現在のPCを調べ直せます。メッシュ作成後のメモリ確認で停止した計算も、作成された総自由度、推定ピーク、適用した予算と上限を記録して履歴に残します。推定ピークは実測値ではなく、記録のない項目は未計測と表示します。</p>
-    <p>v0.1.4では、古い画面ファイルがブラウザに残り、表示が混在する問題も修正しました。旧版の計算を止め、起動用ターミナルを終了してから、新しいZIPを別フォルダへ展開し、新版の起動ファイルを開いてください。ランチャーは版を含むURLを使い、画面ファイルも更新内容に対応したURLで読み込みます。更新後は、新しく開いた画面を使用してください。</p>
-    <p>メモリ制限で止まり、次数が2または3の場合は、まず次数1で計算規模を減らして試せます。最大要素寸法を大きくしても、小さな穴・曲面・細い隙間などが局所的な細分化を要求すると、自由度があまり減らない場合があります。次数1の結果をそのまま最終値とせず、次数とメッシュを変えて収束を確認してください。</p>
+    <h2 id="storage-title">保存・終了・更新</h2>
+    <p>STEP、設定、結果は <code>~/Library/Application Support/Cavity Lab/data</code> に保存します。「表示」メニューの「計算データを Finder で表示」で保存先を確認でき、「ログを開く」でアプリ内のログを確認できます。結果ファイルの保存先はMac標準の保存画面で選びます。</p>
+    <p>アプリを閉じると実行中の計算を停止し、保存済みのデータは残します。更新は旧アプリを終了してから、新しい <code>Cavity Lab.app</code> に置き換えます。アプリ外の保存データはそのまま引き継ぎます。</p>
   </section>
-  <section class="card">
-    <h2>解析領域と計算スレッド数の初期設定</h2>
-    <p>v0.1.6から、STEPの形状に応じて空隙を抽出するか、入力ソリッドを解析領域にするかを自動選択します。判定結果と理由を表示し、従来の手動選択も残しています。形状だけで材質や用途を確定できないため、選択した領域を確認してください。</p>
-    <p>計算スレッド数は、このPCで利用可能なCPUスレッド数の80%（端数切捨て、最低1）を初期値にします。数値は手動変更でき、履歴では保存済みの条件を優先します。実際のCPU使用率は処理によって変わります。</p>
+  <section id="mac-warning" aria-labelledby="mac-warning-title">
+    <h2 id="mac-warning-title">Appleの確認警告が出る場合</h2>
+    <p>この配布版はAppleのDeveloper IDによる署名・公証を受けていません。アプリ形式でもGatekeeperの警告が出る場合があります。「Appleはマルウェアが含まれていないことを検証できませんでした」はマルウェア検出の通知とは異なりますが、安全性の保証でもありません。</p>
+    <p><a href="https://github.com/qupqubit/cavity-lab-public/releases" rel="noreferrer">このプロジェクトの配布ページ</a>から取得したファイルであることを確認し、実行を許可する場合に限り、次の操作を行ってください。</p>
+    <ol>
+      <li>警告を閉じ、Appleメニュー →「システム設定」→「プライバシーとセキュリティ」を開きます。</li>
+      <li>下へスクロールし、<code>Cavity Lab</code> のブロック表示にある「このまま開く」を選びます。</li>
+      <li>認証と確認画面の内容を確認して「開く」を選びます。</li>
+    </ol>
+    <p class="note">ボタンがない場合はアプリをもう一度開いて警告を閉じ、設定を確認してください。組織管理のMacでは制限がある場合があります。マルウェア検出や破損を明示する警告には、この手順を流用しないでください。<a href="https://support.apple.com/ja-jp/102445" rel="noreferrer">Apple公式の説明</a>を確認してください。Gatekeeperの無効化や一括の隔離属性削除は不要です。</p>
   </section>
-  <section class="card">
-    <h2>空隙から開口を自動設定</h2>
-    <p>v0.1.5から、「金属モデルから空隙を抽出」で新しく読み込むと、外接面で空隙を閉じた面を開口候補として自動登録します。解析後の「損失・Participation」に、空洞の蓄積エネルギーと流出電力から求めた各開口のQcと合成Qcを表示します。</p>
-    <p>自動登録した境界は真空・空気相当の放射近似です。画面で面ごとに条件を変更・除外でき、アンテナ取付面と手動設定を優先します。過去の計算の境界条件は変更せずに復元します。</p>
-    <p>認識するのは外接直方体上の切断面で、実機の全開口を保証するものではありません。外部空間も空隙候補になるため、目的の空洞を選んでいるか確認してください。放射境界は一次近似で、PMLによる外部空間解析ではありません。</p>
+  <section aria-labelledby="settings-title">
+    <h2 id="settings-title">解析条件の確認</h2>
+    <p>STEPから空隙抽出か入力ソリッドかを自動選択し、結果と理由を表示します。形状だけでは用途を確定できないため、目的の領域を確認し、必要なら手動で変更してください。抽出した外接面の開口候補は、自動ポートとして編集・除外できます。放射境界は近似で、全開口の認識やPMLによる厳密な外部空間解析を保証するものではありません。</p>
+    <p>メモリ容量と空き容量に応じて計算規模を制限し、実行中も監視します。計算スレッド数の初期値は利用可能数の約80%で、手動変更できます。実際のCPU使用率と速度は処理によって変わります。メッシュと次数を変えた収束確認も必要です。</p>
   </section>
-  <footer><a href="https://github.com/qupqubit/cavity-lab-public" rel="noreferrer">公開リポジトリ・README</a><a href="https://github.com/qupqubit/cavity-lab-public/releases" rel="noreferrer">配布ファイル一覧</a></footer>
+  <section id="browser-version" aria-labelledby="browser-title">
+    <h2 id="browser-title">Windows・ブラウザ版を使う場合</h2>
+    <p>ブラウザ版ZIPも配布しています。Windows x86-64とmacOSが対象で、64ビットPython 3.9〜3.12が別途必要です（3.12推奨）。Windows実機でのFEM計算は未検証です。</p>
+    <div class="actions"><a class="button" href="https://github.com/qupqubit/cavity-lab-public/releases/latest/download/cavity-lab-public.zip" rel="noreferrer">Windows・ブラウザ版ZIP</a><a class="button" href="http://127.0.0.1:8768/" target="_blank" rel="noreferrer">起動済みのブラウザ版を開く</a></div>
+    <ol>
+      <li><a href="https://www.python.org/downloads/" rel="noreferrer">Python公式サイト</a>からPythonを導入します。WindowsではPython Launcherも導入します。</li>
+      <li>ZIP全体を書込み可能なフォルダへ展開し、Windowsは <code>launch.bat</code>、macOSは <code>launch.command</code> を開きます。</li>
+      <li>初回準備後、同じPCのブラウザに表示される解析画面を使います。利用中は起動したターミナル／コマンド画面を開いたままにし、停止はそこでCtrl+Cです。</li>
+    </ol>
+    <p class="note">計算と保存はブラウザを使っているPCで行い、保存先は展開フォルダ内の <code>data/</code> です。上のローカルリンクは起動済みのブラウザ版へ接続するもので、停止中のプログラムを自動起動することはできません。Macアプリではこのリンクを使いません。</p>
+  </section>
+  <footer><a href="https://github.com/qupqubit/cavity-lab-public" rel="noreferrer">公開リポジトリ・README</a><a href="https://github.com/qupqubit/cavity-lab-public/releases" rel="noreferrer">配布ファイル一覧</a><p class="note">このページは案内とダウンロードの入口です。公開ページと配布ファイルにはアクセス制限がありません。</p></footer>
 </main>
 </body>
 </html>

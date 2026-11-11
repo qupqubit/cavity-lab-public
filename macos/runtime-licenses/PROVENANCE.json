@@ -1,0 +1,242 @@
+{
+  "release": "20261110",
+  "runtime": {
+    "python_version": "3.12.16",
+    "provider": "Astral python-build-standalone",
+    "runtimes": {
+      "arm64": {
+        "source_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-aarch64-apple-darwin-install_only.tar.gz",
+        "archive_sha256": "e956e60bc9465d577ef8062059aa05cd3a2665b4b8678a2ed24e432368330b8f"
+      },
+      "x86_64": {
+        "source_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-x86_64-apple-darwin-install_only.tar.gz",
+        "archive_sha256": "83f2922437e6d546d0fcdb8c11f150a8e52787e8d9ea8651b1974e20908eb1bc"
+      }
+    }
+  },
+  "full_archives_for_license_metadata": [
+    {
+      "name": "cpython-3.12.16+20261110-aarch64-apple-darwin-pgo+lto-full.tar.zst",
+      "sha256": "4da072af9dbbc2557d3aabf51db553a19694f6ac61b5b7169749e4acfa5a052d",
+      "source_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-aarch64-apple-darwin-pgo%2Blto-full.tar.zst"
+    },
+    {
+      "name": "cpython-3.12.16+20261110-x86_64-apple-darwin-pgo+lto-full.tar.zst",
+      "sha256": "00ec7774da05b9a3489f5022b8ae91567835adaf8b6288d60150316247b756ee",
+      "source_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.12.16%2B20261110-x86_64-apple-darwin-pgo%2Blto-full.tar.zst"
+    }
+  ],
+  "component_source_manifest_url": "https://raw.githubusercontent.com/astral-sh/python-build-standalone/20261110/pythonbuild/downloads.json",
+  "components": {
+    "cpython-3.12": {
+      "url": "https://www.python.org/ftp/python/3.12.16/Python-3.12.16.tar.xz",
+      "sha256": "b5796915dc45ff745cfb4e990a7e7c93d6f546328a102ce31448d69ebc37575c",
+      "version": "3.12.16",
+      "licenses": [
+        "Python-2.0",
+        "CNRI-Python"
+      ],
+      "license_file": "LICENSE.cpython.txt"
+    },
+    "openssl-3.5": {
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+      "sha256": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+      "version": "3.5.9",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "license_file": "LICENSE.openssl-3.txt"
+    },
+    "bzip2": {
+      "upstream_url": "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz",
+      "url": "https://astral-sh.github.io/mirror/files/bzip2-1.0.8.tar.gz",
+      "sha256": "ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269",
+      "version": "1.0.8",
+      "licenses": [
+        "bzip2-1.0.6"
+      ],
+      "license_file": "LICENSE.bzip2.txt"
+    },
+    "expat": {
+      "url": "https://github.com/libexpat/libexpat/releases/download/R_2_10_0/expat-2.10.0.tar.xz",
+      "sha256": "c624ba2998fc65df1163a49641ff3f9ab73138b11641d92c86bee0fb01b1bc7f",
+      "version": "2.10.0",
+      "licenses": [
+        "MIT"
+      ],
+      "license_file": "LICENSE.expat.txt"
+    },
+    "libedit": {
+      "url": "https://thrysoee.dk/editline/libedit-20260512-3.1.tar.gz",
+      "sha256": "432d5e7ea8b0116dd39f2eca7bc11d0eed77faa6b77ea526ace89907c23ea4a0",
+      "version": "20260512-3.1",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "license_file": "LICENSE.libedit.txt"
+    },
+    "libffi": {
+      "url": "https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz",
+      "sha256": "7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4",
+      "version": "3.8.0",
+      "licenses": [
+        "MIT"
+      ],
+      "license_file": "LICENSE.libffi.txt"
+    },
+    "mpdecimal": {
+      "upstream_url": "https://www.bytereef.org/software/mpdecimal/releases/mpdecimal-4.0.0.tar.gz",
+      "url": "https://astral-sh.github.io/mirror/files/mpdecimal-4.0.0.tar.gz",
+      "sha256": "942445c3245b22730fd41a67a7c5c231d11cb1b9936b9c0f76334fb7d0b4468c",
+      "version": "4.0.0",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "license_file": "LICENSE.mpdecimal.txt"
+    },
+    "ncurses": {
+      "upstream_url": "https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.5.tar.gz",
+      "url": "https://astral-sh.github.io/mirror/files/ncurses-6.5.tar.gz",
+      "sha256": "136d91bc269a9a5785e5f9e980bc76ab57428f604ce3e5a5a90cebc767971cc6",
+      "version": "6.5",
+      "licenses": [
+        "X11"
+      ],
+      "license_file": "LICENSE.ncurses.txt"
+    },
+    "sqlite": {
+      "url": "https://www.sqlite.org/2026/sqlite-autoconf-3530100.tar.gz",
+      "sha256": "83e6b2020a034e9a7ad4a72feea59e1ad52f162e09cbd26735a3ffb98359fc4f",
+      "version": "3530100",
+      "actual_version": "3.53.1.0",
+      "licenses": [],
+      "license_file": "LICENSE.sqlite.txt",
+      "license_public_domain": true
+    },
+    "tcl": {
+      "url": "https://prdownloads.sourceforge.net/tcl/tcl9.0.4-src.tar.gz",
+      "sha256": "d0aed49230bc02a65c1e0229e65f34590a4b037ec40d546f32573b467f7551ea",
+      "version": "9.0.4",
+      "licenses": [
+        "TCL"
+      ],
+      "license_file": "LICENSE.tcl.txt"
+    },
+    "tk": {
+      "url": "https://prdownloads.sourceforge.net/tcl/tk9.0.4-src.tar.gz",
+      "sha256": "d7a146d2917eb8b5cc95276dbf0e3d03c7464d2b19c1675357857c989301dbb4",
+      "version": "9.0.4",
+      "licenses": [
+        "TCL"
+      ],
+      "license_file": "LICENSE.tcl.txt"
+    },
+    "uuid": {
+      "url": "https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz",
+      "sha256": "46af3275291091009ad7f1b899de3d0cea0252737550e7919d17237997db5644",
+      "version": "1.0.3",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "license_file": "LICENSE.libuuid.txt"
+    },
+    "xz": {
+      "url": "https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.gz",
+      "sha256": "0014c7886930454fe8bd4228665b51af55eeae560ea135c9c4cd33f55b2591d9",
+      "version": "5.8.4",
+      "licenses": [
+        "0BSD"
+      ],
+      "license_file": "LICENSE.liblzma.txt"
+    },
+    "zlib": {
+      "url": "https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz",
+      "sha256": "02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584",
+      "version": "1.4",
+      "licenses": [
+        "Zlib"
+      ],
+      "license_file": "LICENSE.zlib.txt"
+    },
+    "zlib-ng": {
+      "url": "https://github.com/python/cpython-source-deps/archive/refs/tags/zlib-ng-2.2.4.tar.gz",
+      "sha256": "00bbd88709bc416cb96160ab61d3e1c8f76e106799af7328d0fe434dc7dd5004",
+      "version": "2.2.4",
+      "licenses": [
+        "Zlib"
+      ],
+      "license_file": "LICENSE.zlib-ng.txt"
+    },
+    "pip": {
+      "url": "https://files.pythonhosted.org/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl",
+      "sha256": "f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13",
+      "version": "26.3"
+    }
+  },
+  "certifi_source": {
+    "version": "2026.10.23",
+    "source_url": "https://files.pythonhosted.org/packages/fd/11/b524cbd9bbdaca58608e4cf4053fd463417549e1959fa8d3aa18319f9555/certifi-2026.10.23.tar.gz",
+    "sha256": "a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd",
+    "included_source": "certifi-source/"
+  },
+  "ngsolve_downloaded_on_first_launch": {
+    "version": "6.2.2506",
+    "wheel_filename": "ngsolve-6.2.2506-cp312-cp312-macosx_10_15_universal2.whl",
+    "sha256": "8a4570ca0cfa7cd68cbd6c31ac58db22ad816ae29e2d5afa0b351268de8239e0",
+    "metadata_url": "https://pypi.org/pypi/ngsolve/6.2.2506/json"
+  },
+  "license_file_sha256": {
+    "CPython-third-party-license.rst": "341832873fd316a37927e79385093fbbfd40a467428480835fe435a80cadf4e5",
+    "LICENSE.bzip2.txt": "1f38bbc7caacafd65169276d759c0d88c991b753b643ce35d0e45ea1971dd441",
+    "LICENSE.cpython.txt": "86e61415828a8b5b06ec8d024e6f086ce155a8b85fd0c419c0ba4dc004e74fdd",
+    "LICENSE.expat.txt": "122f2c27000472a201d337b9b31f7eb2b52d091b02857061a8880371612d9534",
+    "LICENSE.itcl-4.3.8.txt": "b61edfaeead97546bc62b1f205b046f2e440b83bfc517bc0932b93bc3d505865",
+    "LICENSE.libedit.txt": "29cea33c32bbc9785142386377915612a2fa786482c46843383384aded2e09b1",
+    "LICENSE.libffi.txt": "deaf3a42effb551a5b140fa9afefed183a27f1341c6d1bf430d106a5e6931fc0",
+    "LICENSE.liblzma.txt": "9a4062de0a2c388a98cf35a35d348b62fa97c838a71c3c28ee1a2d7d0a565b02",
+    "LICENSE.libtommath.txt": "2fa64b163659f41965c9815882a8296d3d03ff546b76153e11445f9bdecf955a",
+    "LICENSE.libuuid.txt": "122ee1f7e258f2c3c0e538a75c037684f420454bf3850ddc74ce750bbf5fe86b",
+    "LICENSE.mpdecimal.txt": "669512af7219f58be03a398766d7c9da11a3b3df9d3f05cb74c5ceca25c8da3b",
+    "LICENSE.ncurses.txt": "87a4c4442337b8968ef956031c406b74f9cb7149b7ba87311bdaba534816201c",
+    "LICENSE.openssl-3.5.9.txt": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+    "LICENSE.openssl-3.txt": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+    "LICENSE.python-build-standalone.txt": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
+    "LICENSE.sqlite.txt": "38bef3d28b24f145ea293bd3b6eb4b20396982abc8303128fb493986ea5bc719",
+    "LICENSE.tcl-9.0.4.txt": "c0a69a2bfd757361ec7e6143973b103c90409316b49e9c88db26ad6388e79f16",
+    "LICENSE.tcl-thread-3.0.6.txt": "0a03981c40f7813ce6ddbdfce9882020bcfd696ea044b21ef07619ed9b86abae",
+    "LICENSE.tcl.txt": "c0a69a2bfd757361ec7e6143973b103c90409316b49e9c88db26ad6388e79f16",
+    "LICENSE.tk-9.0.4.txt": "2cde822b93ca16ae535c954b7dfe658b4ad10df2a193628d1b358f1765e8b198",
+    "LICENSE.zlib-ng.txt": "6c9f0d975b41afaa34d22f55bb8986ce69e5cb7ad327cb2b28820cd425edf5ee",
+    "LICENSE.zlib.txt": "e32ff4e00d9d94930537635291da39e7e612703334bf6fde8c7f1686fe8a45a2",
+    "README.md": "3845dbf49e2c74b1a4adaa2042882558f2768a5bd37f2d0d1094ec3f15ee5de2",
+    "certifi-source/LICENSE": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7",
+    "certifi-source/__init__.py": "6c069810be5831ee48e99eb0fbd79c06b51803771f48d7ccd28f9c0c32270e86",
+    "certifi-source/__main__.py": "d64dc2afde6f0b1c464460e58eb5b7c0c76965d2f73617f4bb59fe936a9db026",
+    "certifi-source/cacert.pem": "2ef52ad56b4803e264045c915e55c236cbfa045b84b81efefc218a19eb44bd2b",
+    "certifi-source/core.py": "82efc40952359b746ad32b69b0d13ad6181019c29a380b7d46cf46f0ab1308e2",
+    "certifi-source/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pip/AUTHORS.txt": "f8998e1ed3151771c2fbc899ccf0e18b0817d425dff4983eb0fede4e48db47e4",
+    "pip/LICENSE.txt": "634300a669d49aeae65b12c6c48c924c51a4cdf3d1ff086dc3456dc8bcaa2104",
+    "pip/src/pip/_vendor/cachecontrol/LICENSE.txt": "86eeee87be2a43f3ff1f56496f451f69243926f025fedbb033666c304c4c161b",
+    "pip/src/pip/_vendor/certifi/LICENSE": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7",
+    "pip/src/pip/_vendor/distlib/LICENSE.txt": "808e10c8a6ab8deb149ff9b3fb19f447a808094606d712a9ca57fead3552599d",
+    "pip/src/pip/_vendor/distro/LICENSE": "cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14",
+    "pip/src/pip/_vendor/idna/LICENSE.md": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04",
+    "pip/src/pip/_vendor/msgpack/COPYING": "492dedba85da5872f78e6091bcd1fea474d660d35acb4dee964b8aab3f007427",
+    "pip/src/pip/_vendor/packaging/LICENSE": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48",
+    "pip/src/pip/_vendor/packaging/LICENSE.APACHE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "pip/src/pip/_vendor/packaging/LICENSE.BSD": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5",
+    "pip/src/pip/_vendor/pkg_resources/LICENSE": "86da0f01aeae46348a3c3d465195dc1ceccde79f79e87769a64b8da04b2a4741",
+    "pip/src/pip/_vendor/platformdirs/LICENSE": "29e0fd62e929850e86eb28c3fdccf0cefdf4fa94879011cffb3d0d4bed6d4db6",
+    "pip/src/pip/_vendor/pygments/LICENSE": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17",
+    "pip/src/pip/_vendor/pyproject_hooks/LICENSE": "1b22b049b5267d6dfc23a67bf4a84d8ec04b9fdfb1a51d360e42b4342c8b4154",
+    "pip/src/pip/_vendor/requests/LICENSE": "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b",
+    "pip/src/pip/_vendor/resolvelib/LICENSE": "f388fd38cad13112c1dc0f669bbe80e7f84541edbafb72f3030d2ca7642c3c9d",
+    "pip/src/pip/_vendor/rich/LICENSE": "deed7c17a4318158190a3ea239cc879a5a50271cebb98ae7025f48fbe58dca15",
+    "pip/src/pip/_vendor/tomli/LICENSE": "b80816b0d530b8accb4c2211783790984a6e3b61922c2b5ee92f3372ab2742fe",
+    "pip/src/pip/_vendor/tomli_w/LICENSE": "b80816b0d530b8accb4c2211783790984a6e3b61922c2b5ee92f3372ab2742fe",
+    "pip/src/pip/_vendor/truststore/LICENSE": "33be7b7e8fa4fd19b1760e1a8ed8a668bdab852c91b692dd41424bcb725a9fca",
+    "pip/src/pip/_vendor/urllib3/LICENSE.txt": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686",
+    "pip/vendor.txt": "11885a895536bbc3dbf956f493d775fab0ba0bcde182b8d2549f2cbd2ed9fd76"
+  }
+}

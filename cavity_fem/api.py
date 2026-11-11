@@ -238,6 +238,7 @@ def info():
     import ngsolve
     return {"solver": "NGSolve", "version": ngsolve.__version__, "example_available": True,
             "local_only": True, "app_version": __version__,
+            "desktop_ui": os.environ.get("CAVITY_FEM_DESKTOP") == "1",
             "memory": memory_policy(), "cpu": cpu_policy(),
             "sample": {"name": "Circular vacuum cavity", "geometry_mode": "vacuum_solid",
                        "radius_mm": 15, "height_mm": 20,

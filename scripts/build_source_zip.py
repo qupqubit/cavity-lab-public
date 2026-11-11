@@ -7,7 +7,7 @@ from pathlib import Path
 import stat
 import zipfile
 
-SOURCE_DIRS = {'cavity_fem', 'static', 'scripts', 'docs', 'manual', 'examples', 'tests', 'LICENSES', '.github'}
+SOURCE_DIRS = {'cavity_fem', 'static', 'scripts', 'docs', 'manual', 'examples', 'tests', 'LICENSES', '.github', 'macos'}
 SOURCE_FILES = {'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'pyproject.toml', 'requirements.txt', 'requirements-tested.txt',
                 'launch.command', 'launch.bat', '.gitignore'}
 EXCLUDED_DIRS = {'.git', '.venv', '.bootstrap', '__pycache__', '.pytest_cache', 'data', 'data-development', 'node_modules'}

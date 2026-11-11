@@ -10,6 +10,17 @@ NGSolve/Netgen/OCCT native libraries, or downloaded wheels. The launchers instal
 separate PyPI distributions into a local environment. Those distributions retain
 their own license terms; installing them does not change those terms.
 
+The separate **macOS .app distribution (v0.1.7 onward)** bundles unmodified
+CPython 3.12 runtimes from Astral python-build-standalone for Apple Silicon and
+Intel, with a compiled original Swift launcher. It does not bundle FEM wheels
+or an installed FEM environment. The app installs those dependencies separately
+on first launch. Python, native-component, and pip/vendor notices are preserved
+inside the application under `Contents/Resources/PythonNotices` and the runtime
+trees. See [macOS runtime provenance](macos/RUNTIME_NOTICES.md) and the complete
+[supplemental notices](macos/runtime-licenses/). The application MIT license does
+not replace those terms. The bundle manifest records the exact upstream archive
+hashes and source-file hashes. Ad-hoc code signing is not Apple notarization.
+
 The initial inventory was checked against installed distribution metadata on
 **2026-11-11**, using the **macOS arm64 / Python 3.9** runtime environment before
 memory monitoring was added. That historical snapshot contained **20 runtime
@@ -105,7 +116,8 @@ The actual resolved version and its installed notice should be checked when
 building a Windows distribution. `exceptiongroup` is conditional on the Python
 version; other dependency markers can likewise change the installed set.
 
-Python and installation tools are separately obtained, not redistributed here.
+In the source ZIP, Python and installation tools are separately obtained.
+The separate macOS app bundles the runtime described above.
 Their terms remain applicable: [Python license](https://docs.python.org/3/license.html),
 [pip license](https://github.com/pypa/pip/blob/22.0.4/LICENSE.txt), and
 [setuptools license](https://github.com/pypa/setuptools/blob/v60.10.0/LICENSE).
