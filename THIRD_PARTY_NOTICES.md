@@ -136,3 +136,10 @@ not a substitute for any required corresponding-source delivery or offer.
 This notice records inspected provenance and license texts. It does not expand
 upstream permissions or guarantee clearance of every possible patent, trademark,
 or third-party claim. Imported user CAD remains subject to its owner's rights.
+
+## Application icon
+
+The CavityFEM icon uses an image supplied by the user specifically for this
+application icon. It is not part of the original MIT-licensed sample geometry
+nor newly licensed under MIT. See [icon provenance](macos/icon-NOTICE.md). The
+image and icon are packaged without the underlying CAD model or its results.

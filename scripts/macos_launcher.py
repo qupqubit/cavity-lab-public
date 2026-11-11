@@ -47,7 +47,7 @@ def desktop_lock(directory):
         try:
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise DesktopError('Cavity Labは既に起動しています。開いているアプリを確認してください。') from None
+            raise DesktopError('CavityFEMは既に起動しています。開いているアプリを確認してください。') from None
         try:
             yield
         finally:
@@ -131,7 +131,7 @@ def choose_port(preferred=8770):
             except OSError:
                 continue
             return port
-    raise DesktopError('アプリ用のローカル接続を作成できません。別のCavity Labを終了してください。')
+    raise DesktopError('アプリ用のローカル接続を作成できません。別のCavityFEMを終了してください。')
 
 
 def local_json(port, path, method='GET'):

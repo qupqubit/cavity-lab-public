@@ -154,12 +154,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         let bar = NSMenu()
         let appItem = NSMenuItem()
         bar.addItem(appItem)
-        let app = NSMenu(title: "キャビティ FEM")
-        app.addItem(withTitle: "キャビティ FEM について", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let app = NSMenu(title: "CavityFEM")
+        app.addItem(withTitle: "CavityFEM について", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         app.addItem(.separator())
         app.addItem(withTitle: "隠す", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         app.addItem(.separator())
-        app.addItem(withTitle: "キャビティ FEM を終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        app.addItem(withTitle: "CavityFEM を終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = app
         let editItem = NSMenuItem()
         bar.addItem(editItem)
@@ -191,7 +191,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private func makeWindow() {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "キャビティ FEM"
+        window.title = "CavityFEM"
         window.minSize = NSSize(width: 620, height: 500)
         window.center()
         window.delegate = self

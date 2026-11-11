@@ -25,7 +25,8 @@ SOURCE_FILES = {
     "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "pyproject.toml",
     "requirements.txt", "requirements-tested.txt", "scripts/bootstrap.py",
     "scripts/macos_launcher.py", "examples/cylinder-vacuum.step",
-    "examples/cylinder.json", "manual/methods.md",
+    "examples/cylinder.json", "manual/methods.md", "macos/icon-NOTICE.md",
+    "macos/RUNTIME_NOTICES.md",
 }
 SOURCE_TREES = {"cavity_fem", "static", "LICENSES"}
 EXCLUDED_PARTS = {"__pycache__", ".pytest_cache", ".git", ".venv", ".bootstrap", "data", "node_modules"}
@@ -35,7 +36,7 @@ REQUIRED_FILES = {
     "cavity_fem/solver.py", "cavity_fem/spectrum.py", "static/index.html",
     "static/app.js", "static/style.css", "scripts/bootstrap.py",
     "scripts/macos_launcher.py", "requirements.txt", "LICENSE",
-    "THIRD_PARTY_NOTICES.md", "examples/cylinder-vacuum.step",
+    "THIRD_PARTY_NOTICES.md", "examples/cylinder-vacuum.step", "macos/icon-NOTICE.md",
 }
 
 
@@ -247,11 +248,33 @@ def sign_bundle(bundle):
     return {"kind": "ad_hoc", "newly_signed_macho_files": signed, "notarized": False}
 
 
+def validate_icon(path):
+    """Check the ICNS container and return its content provenance digest."""
+    path = Path(path)
+    if not path.is_file() or path.is_symlink() or path.parent.is_symlink():
+        raise ValueError("A regular macos/CavityFEM.icns icon file is required")
+    data = path.read_bytes()
+    if len(data) < 16 or data[:4] != b"icns" or struct.unpack_from(">I", data, 4)[0] != len(data):
+        raise ValueError("CavityFEM.icns must be a complete ICNS container")
+    offset = 8
+    while offset < len(data):
+        if offset + 8 > len(data):
+            raise ValueError("CavityFEM.icns has a truncated icon record")
+        size = struct.unpack_from(">I", data, offset + 4)[0]
+        if size < 8 or offset + size > len(data):
+            raise ValueError("CavityFEM.icns has an invalid icon record")
+        offset += size
+    return hashlib.sha256(data).hexdigest()
+
+
 def validate_bundle(bundle):
     contents = bundle / "Contents"
     metadata = plistlib.loads((contents / "Info.plist").read_bytes())
     if metadata["CFBundleIdentifier"] != "jp.qupqubit.cavitylab":
         raise ValueError("Unexpected app identity")
+    if any(metadata.get(key) != "CavityFEM" for key in
+           ("CFBundleName", "CFBundleDisplayName", "CFBundleExecutable", "CFBundleIconFile")):
+        raise ValueError("App name, executable and icon must be CavityFEM")
     executable = contents / "MacOS" / metadata["CFBundleExecutable"]
     if not executable.stat().st_mode & 0o111 or macho_architectures(executable) != set(ARCHITECTURES):
         raise ValueError("Launcher must be executable and universal arm64/x86_64")
@@ -262,6 +285,9 @@ def validate_bundle(bundle):
     manifest = json.loads((resources / "BUNDLE-MANIFEST.json").read_text(encoding="utf-8"))
     if metadata["CFBundleShortVersionString"] != manifest["app_version"]:
         raise ValueError("Bundle version does not match source inventory")
+    icon_hash = validate_icon(resources / "CavityFEM.icns")
+    if manifest.get("icon") != {"file": "CavityFEM.icns", "source": "macos/CavityFEM.icns", "sha256": icon_hash}:
+        raise ValueError("Bundle icon does not match its provenance digest")
     return metadata
 
 
@@ -285,6 +311,8 @@ def build_app(root, python_arm64, python_x86_64, output, runtime_manifest, runti
     swift = root / "macos/CavityLab.swift"
     if not swift.is_file() or swift.is_symlink():
         raise ValueError("macos/CavityLab.swift is required")
+    icon = root / "macos/CavityFEM.icns"
+    icon_hash = validate_icon(icon)
     version = app_version(root)
     archive = Path(archive).absolute() if archive else None
     if archive and (archive.exists() or archive.is_symlink() or archive.suffix != ".zip"):
@@ -300,12 +328,15 @@ def build_app(root, python_arm64, python_x86_64, output, runtime_manifest, runti
         (contents / "MacOS").mkdir(parents=True)
         resources.mkdir()
         source_inventory = copy_app_source(root, resources / "app")
+        shutil.copyfile(icon, resources / "CavityFEM.icns")
+        (resources / "CavityFEM.icns").chmod(0o644)
         for architecture, runtime in runtimes.items():
             shutil.copytree(runtime, resources / "python" / architecture, symlinks=True, copy_function=shutil.copy2)
         if notices:
             shutil.copytree(notices, resources / "PythonNotices", copy_function=shutil.copy2)
-        metadata = {"CFBundleIdentifier": "jp.qupqubit.cavitylab", "CFBundleName": "Cavity Lab",
-                    "CFBundleDisplayName": "Cavity Lab", "CFBundleExecutable": "CavityLab",
+        metadata = {"CFBundleIdentifier": "jp.qupqubit.cavitylab", "CFBundleName": "CavityFEM",
+                    "CFBundleDisplayName": "CavityFEM", "CFBundleExecutable": "CavityFEM",
+                    "CFBundleIconFile": "CavityFEM",
                     "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version,
                     "CFBundleVersion": version, "LSMinimumSystemVersion": "12.0",
                     "LSApplicationCategoryType": "public.app-category.utilities",
@@ -313,9 +344,10 @@ def build_app(root, python_arm64, python_x86_64, output, runtime_manifest, runti
                     "NSHighResolutionCapable": True,
                     "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True}}
         (contents / "Info.plist").write_bytes(plistlib.dumps(metadata, sort_keys=True))
-        compile_launcher(swift, contents / "MacOS/CavityLab", temporary)
+        compile_launcher(swift, contents / "MacOS/CavityFEM", temporary)
         bundle_manifest = {"format": "cavity-lab-macos-bundle-v1", "app_version": version,
                            **source_inventory, "runtimes": manifest,
+                           "icon": {"file": "CavityFEM.icns", "source": "macos/CavityFEM.icns", "sha256": icon_hash},
                            "runtime_archive_verification": "Pinned archive checksums supplied and verified by the build invoker before extraction.",
                            "fem_libraries_bundled": False, "signing": "ad_hoc_not_notarized",
                            "installation": "FEM dependencies are installed into Application Support on first launch."}

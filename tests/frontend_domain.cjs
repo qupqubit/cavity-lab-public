@@ -44,7 +44,7 @@ function app(){
   });
   vm.runInContext(declarations.join('\n')+'\n'+definitions.join('\n')+`
     const viewer={setData(){},draw(){}};
-    function syncButtons(){} function scheduleEstimate(){} function refreshAntennaSelectors(){}
+    function syncButtons(){} function scheduleEstimate(){} function refreshAntennaSelectors(){} function renderProgress(){}
     function updateLossModel(){} function setStatus(){} function startTransient(){} function endTransient(){}
     function renderAntennas(){} function updatePortCount(){} function renderPorts(){syncAutomaticPorts();}
     function notice(text){globalThis.lastNotice=text;}

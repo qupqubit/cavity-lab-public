@@ -3,10 +3,11 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleDevelopmentRegion</key><string>ja</string>
-  <key>CFBundleDisplayName</key><string>Cavity Lab</string>
-  <key>CFBundleExecutable</key><string>CavityLab</string>
+  <key>CFBundleDisplayName</key><string>CavityFEM</string>
+  <key>CFBundleExecutable</key><string>CavityFEM</string>
   <key>CFBundleIdentifier</key><string>jp.qupqubit.cavitylab</string>
-  <key>CFBundleName</key><string>Cavity Lab</string>
+  <key>CFBundleName</key><string>CavityFEM</string>
+  <key>CFBundleIconFile</key><string>CavityFEM</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>__APP_VERSION__</string>
   <key>CFBundleVersion</key><string>__APP_VERSION__</string>

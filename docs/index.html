@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <meta name="referrer" content="no-referrer">
-  <title>キャビティ解析の起動方法</title>
+  <title>CavityFEM：Macアプリの起動方法</title>
   <style>
     :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#202b33;background:#fff;line-height:1.8;font-size:16px}
     *{box-sizing:border-box}body{margin:0}main{max-width:840px;margin:0 auto;padding:36px 24px 48px}h1{font-size:25px;line-height:1.5;margin:0 0 18px;font-weight:650}h2{font-size:19px;margin:0 0 12px;font-weight:600}h3{font-size:16px;margin:0 0 6px;font-weight:600}p{margin:0 0 14px}a{color:#185980;text-underline-offset:3px}a:focus-visible{outline:3px solid #90c5df;outline-offset:4px}section{padding:26px 0;border-top:1px solid #dbe1e5;margin-top:25px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin:21px 0}.button{display:inline-block;border:1px solid #465965;border-radius:5px;padding:10px 17px;text-decoration:none;font-weight:600;font-size:15px;color:#253c4a}.button.primary{background:#253c4a;color:#fff}.note{font-size:14px;color:#56636c}ol{padding-left:24px;margin:0}li{padding-left:5px;margin:0 0 20px}li:last-child{margin-bottom:0}li p{margin:0}.launcher-list{display:grid;grid-template-columns:100px 1fr;gap:7px 12px;margin:11px 0}.launcher-list dt{font-weight:600}.launcher-list dd{margin:0}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em;background:#f2f4f5;padding:2px 5px;border-radius:3px}.local-address,code{overflow-wrap:anywhere}footer{margin-top:30px;padding-top:18px;border-top:1px solid #dbe1e5;font-size:14px}footer a{margin-right:20px}@media(max-width:520px){main{padding:25px 19px 35px}h1{font-size:22px}.actions{flex-direction:column;align-items:stretch}.button{text-align:center}.launcher-list{grid-template-columns:80px 1fr}}
@@ -13,17 +13,18 @@
 </head>
 <body>
 <main>
-  <h1>キャビティ FEM：Macアプリの起動方法</h1>
+  <h1>CavityFEM：Macアプリの起動方法</h1>
   <p>STEP 形状から共振周波数、Qi、各ポートの Qc、participation、電場分布、同軸ポートの S11 を求めます。<strong>計算とデータ保存は、アプリを起動したMacで行います。</strong></p>
-  <p>v0.1.7 の Mac アプリは、解析画面・ファイル選択・結果保存・ログ閲覧をアプリ内で行います。外部ブラウザ、ターミナル、Git、clone は不要です。</p>
+  <p>v0.1.8 の Mac アプリは、解析画面・ファイル選択・結果保存・ログ閲覧をアプリ内で行います。外部ブラウザ、ターミナル、Git、clone は不要です。</p>
+  <p class="note">v0.1.8で表示名をCavityFEMに変更し、提供されたキャビティ画像をアイコンに採用しました。計算中の所要時間カードに残り時間が表示されない問題も修正しています。保存済みの履歴は引き継ぎます。</p>
   <div class="actions">
-    <a class="button primary" href="https://github.com/qupqubit/cavity-lab-public/releases/latest/download/Cavity-Lab-macOS.zip" rel="noreferrer">Macアプリをダウンロード（ZIP）</a>
+    <a class="button primary" href="https://github.com/qupqubit/cavity-lab-public/releases/latest/download/CavityFEM-macOS.zip" rel="noreferrer">Macアプリをダウンロード（ZIP）</a>
   </div>
   <p class="note">macOS 12以降・Apple Silicon / IntelのUniversalアプリ。Python同梱。Intel Macでの実機動作は未検証です。初回のFEMライブラリ準備にはインターネット接続を使用します。</p>
   <section aria-labelledby="first-title">
     <h2 id="first-title">初回の起動</h2>
     <ol>
-      <li><h3>ZIPを展開してアプリを開く</h3><p>ダウンロードしたZIP全体を展開し、<code>Cavity Lab.app</code> を「アプリケーション」フォルダなどに移動して開きます。Appleの確認警告が出た場合は、<a href="#mac-warning">下の案内</a>を確認してください。</p></li>
+      <li><h3>ZIPを展開してアプリを開く</h3><p>ダウンロードしたZIP全体を展開し、<code>CavityFEM.app</code> を「アプリケーション」フォルダなどに移動して開きます。Appleの確認警告が出た場合は、<a href="#mac-warning">下の案内</a>を確認してください。</p></li>
       <li><h3>計算環境の準備を待つ</h3><p>必要なFEMライブラリを初回に導入します。数分かかることがあるため、アプリの状態表示を確認して待ってください。準備後は、同じウィンドウに解析画面が表示されます。</p></li>
       <li><h3>STEPを読み込んで計算する</h3><p>STEPを選び、判定された解析領域と材料・境界条件を確認して実行します。「円筒サンプルを読み込む」も使えます。材料損失や同軸寸法の初期値は例なので、対象に合わせて変更してください。</p></li>
     </ol>
@@ -32,7 +33,8 @@
   <section aria-labelledby="storage-title">
     <h2 id="storage-title">保存・終了・更新</h2>
     <p>STEP、設定、結果は <code>~/Library/Application Support/Cavity Lab/data</code> に保存します。「表示」メニューの「計算データを Finder で表示」で保存先を確認でき、「ログを開く」でアプリ内のログを確認できます。結果ファイルの保存先はMac標準の保存画面で選びます。</p>
-    <p>アプリを閉じると実行中の計算を停止し、保存済みのデータは残します。更新は旧アプリを終了してから、新しい <code>Cavity Lab.app</code> に置き換えます。アプリ外の保存データはそのまま引き継ぎます。</p>
+    <p>アプリを閉じると実行中の計算を停止し、保存済みのデータは残します。更新は旧アプリを終了してから、新しい <code>CavityFEM.app</code> を配置し、以後はこちらを開きます。旧名の <code>Cavity Lab.app</code> が残る場合も、古い版と同時に起動しないでください。アプリ外の保存データはそのまま引き継ぎます。</p>
+    <p class="note">保存先の <code>Cavity Lab</code> という名前は、既存の履歴との互換性のため意図的に維持しています。保存先フォルダを改名する必要はありません。</p>
   </section>
   <section id="mac-warning" aria-labelledby="mac-warning-title">
     <h2 id="mac-warning-title">Appleの確認警告が出る場合</h2>
@@ -40,7 +42,7 @@
     <p><a href="https://github.com/qupqubit/cavity-lab-public/releases" rel="noreferrer">このプロジェクトの配布ページ</a>から取得したファイルであることを確認し、実行を許可する場合に限り、次の操作を行ってください。</p>
     <ol>
       <li>警告を閉じ、Appleメニュー →「システム設定」→「プライバシーとセキュリティ」を開きます。</li>
-      <li>下へスクロールし、<code>Cavity Lab</code> のブロック表示にある「このまま開く」を選びます。</li>
+      <li>下へスクロールし、<code>CavityFEM</code> のブロック表示にある「このまま開く」を選びます。</li>
       <li>認証と確認画面の内容を確認して「開く」を選びます。</li>
     </ol>
     <p class="note">ボタンがない場合はアプリをもう一度開いて警告を閉じ、設定を確認してください。組織管理のMacでは制限がある場合があります。マルウェア検出や破損を明示する警告には、この手順を流用しないでください。<a href="https://support.apple.com/ja-jp/102445" rel="noreferrer">Apple公式の説明</a>を確認してください。Gatekeeperの無効化や一括の隔離属性削除は不要です。</p>
@@ -49,6 +51,7 @@
     <h2 id="settings-title">解析条件の確認</h2>
     <p>STEPから空隙抽出か入力ソリッドかを自動選択し、結果と理由を表示します。形状だけでは用途を確定できないため、目的の領域を確認し、必要なら手動で変更してください。抽出した外接面の開口候補は、自動ポートとして編集・除外できます。放射境界は近似で、全開口の認識やPMLによる厳密な外部空間解析を保証するものではありません。</p>
     <p>メモリ容量と空き容量に応じて計算規模を制限し、実行中も監視します。計算スレッド数の初期値は利用可能数の約80%で、手動変更できます。実際のCPU使用率と速度は処理によって変わります。メッシュと次数を変えた収束確認も必要です。</p>
+    <p>計算中の所要時間カードは、残り時間、完了時刻（日本時間）、予測幅、処理段階を更新します。順番待ちや、履歴から開いた実行中の計算にも対応します。推定できない間はその状態を表示し、実際の完了時刻を保証するものではありません。</p>
   </section>
   <section id="browser-version" aria-labelledby="browser-title">
     <h2 id="browser-title">Windows・ブラウザ版を使う場合</h2>
@@ -61,6 +64,7 @@
     </ol>
     <p class="note">計算と保存はブラウザを使っているPCで行い、保存先は展開フォルダ内の <code>data/</code> です。上のローカルリンクは起動済みのブラウザ版へ接続するもので、停止中のプログラムを自動起動することはできません。Macアプリではこのリンクを使いません。</p>
   </section>
+  <p class="note">提供されたアイコン画像と形式変換版は、ソフトウェア本体のMITライセンスには含まれません。<a href="https://github.com/qupqubit/cavity-lab-public/blob/main/macos/icon-NOTICE.md" rel="noreferrer">アイコンの出所と通知</a></p>
   <footer><a href="https://github.com/qupqubit/cavity-lab-public" rel="noreferrer">公開リポジトリ・README</a><a href="https://github.com/qupqubit/cavity-lab-public/releases" rel="noreferrer">配布ファイル一覧</a><p class="note">このページは案内とダウンロードの入口です。公開ページと配布ファイルにはアクセス制限がありません。</p></footer>
 </main>
 </body>

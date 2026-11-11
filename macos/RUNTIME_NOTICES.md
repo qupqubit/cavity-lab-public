@@ -1,8 +1,12 @@
-# macOS 同梱 Python とライセンス
+# CavityFEM v0.1.8：macOS 同梱 Python とライセンス
 
-Cavity Lab の macOS アプリは、Astral の python-build-standalone **20261110** リリースから、未改変の **CPython 3.12.16 install_only** 配布物を使用します。Apple Silicon と Intel の Python を別々に保持し、実行する CPU に対応するものを選びます。この文書と `runtime-licenses/` をアプリの配布物にも同梱してください。
+CavityFEM の macOS アプリは、Astral の python-build-standalone **20261110** リリースから、未改変の **CPython 3.12.16 install_only** 配布物を使用します。Apple Silicon と Intel の Python を別々に保持し、実行する CPU に対応するものを選びます。この文書と `runtime-licenses/` をアプリの配布物にも同梱してください。
 
 Python 実行環境だけを同梱します。NGSolve、Netgen、NumPy、SciPy などの計算用パッケージと、ユーザーの CAD・計算結果は含めません。計算用パッケージは初回起動時に PyPI から、その Mac の Application Support 内の専用環境へインストールします。それらのライセンスは [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) と各インストール済みパッケージの通知に従います。
+
+v0.1.8では表示名と配布名を `CavityFEM.app` / `CavityFEM-macOS.zip` に変更しています。ブラウザ版の配布名は `cavity-lab-public.zip` のままです。既存のデータと設定を引き継ぐため、bundle identifier `jp.qupqubit.cavitylab` と保存先 `~/Library/Application Support/Cavity Lab/data` は維持します。Pythonランタイムの版は変更していません。
+
+アプリアイコンは提供された画像とその形式変換版を使用します。これはPythonの一部でもMITの自作サンプルでもありません。[アイコンの通知](icon-NOTICE.md) を参照してください。
 
 ## 配布物の特定
 
@@ -17,7 +21,7 @@ Python 実行環境だけを同梱します。NGSolve、Netgen、NumPy、SciPy �
 
 ## 著作権・ライセンスの保持
 
-Python 全体を Cavity Lab 自体のライセンスへ変更するものではありません。各部品の条件は同梱した原文を参照してください。
+Python 全体を CavityFEM 自体のライセンスへ変更するものではありません。各部品の条件は同梱した原文を参照してください。
 
 | 部品 | このランタイムの通知 |
 | --- | --- |
@@ -45,7 +49,7 @@ pip が含む certifi 2026.10.23 は MPL-2.0 の対象です。その通知を�
 
 上流はインストール先を固定しない自己完結したランタイムとして配布しています。[配布形式](https://docs.astral.sh/python-build-standalone/distributions/)
 
-Apple Silicon では、展開後さらに空白を含む別ディレクトリへコピーして、Python 3.12.16、ssl、sqlite3、ctypes、zlib、bz2、lzma、venv、ensurepip の動作を確認しました。その Python から専用 venv を作り、venv 内の pip 26.3 も起動しました。Intel 版は Mach-O x86_64 と配布メタデータを確認しており、Intel 実機での起動試験は行っていません。
+v0.1.7のランタイム確認では、Apple Silicon で展開後さらに空白を含む別ディレクトリへコピーして、Python 3.12.16、ssl、sqlite3、ctypes、zlib、bz2、lzma、venv、ensurepip の動作を確認しました。その Python から専用 venv を作り、venv 内の pip 26.3 も起動しました。Intel 版は Mach-O x86_64 と配布メタデータを確認しており、Intel 実機での起動試験は行っていません。
 
 Python の配布メタデータ上の最低 OS は ARM が macOS 11.0、Intel が 10.15 です。これは Python 単体の条件であり、アプリ本体や計算用パッケージを含む全体の対応 OS を保証する値ではありません。
 
@@ -63,8 +67,8 @@ python3 scripts/build_macos_app.py \
   --python-x86_64 '<Intel 展開先>/python' \
   --runtime-manifest macos/runtime-manifest.json \
   --runtime-notices macos/runtime-licenses \
-  --output '<出力先>/Cavity Lab.app' \
-  --archive '<出力先>/Cavity-Lab-macOS.zip'
+  --output '<出力先>/CavityFEM.app' \
+  --archive '<出力先>/CavityFEM-macOS.zip'
 ```
 
-この処理はソースから Swift の両 CPU 向けランチャーを作り、指定した Python と通知を配置して、ローカル実行用の ad-hoc 署名を行います。FEM のダウンロードやインストールは行いません。ZIP の名前は `Cavity-Lab-macOS.zip` です。ad-hoc 署名は Apple Developer ID 署名や公証ではありません。外部配布の公証を実施したという意味にはなりません。
+この処理はソースから Swift の両 CPU 向けランチャーを作り、指定した Python と通知を配置して、ローカル実行用の ad-hoc 署名を行います。FEM のダウンロードやインストールは行いません。ZIP の名前は `CavityFEM-macOS.zip` です。ad-hoc 署名は Apple Developer ID 署名や公証ではありません。外部配布の公証を実施したという意味にはなりません。

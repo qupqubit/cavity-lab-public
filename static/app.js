@@ -6,6 +6,7 @@
   Object.assign(state,{autoOpenings:false,excludedCapFaces:[],autoCandidateHints:[]});
   Object.assign(state,{geometryRequestedMode:"auto",geometryFromHistory:false});
   Object.assign(state,{threadsProtected:false,threadsDefaultApplied:false});
+  Object.assign(state,{jobStage:"",jobPollError:false});
   const statuses = { queued: "順番待ち", running: "計算中", completed: "計算完了", failed: "計算エラー", cancelled: "停止済み", ready: "形状読込済み", loading: "形状を確認中" };
   const mappings = { "geometry-mode": "geometry_mode", "solid-index": "solid_index", "maxh-mm": "maxh_mm", "order": "order", "n-modes": "n_modes", "target-ghz": "target_ghz", "threads": "threads", "rs-nohm": "rs_nohm", "bulk-epsr": "bulk_epsr", "bulk-tand": "bulk_tand", "oxide-thickness-nm": "oxide_thickness_nm", "oxide-epsr": "oxide_epsr", "oxide-tand": "oxide_tand", "loss-model": "loss_model", "temperature-k": "temperature_k", "photon-number": "photon_number", "tls-nc": "tls_nc", "tls-beta": "tls_beta", "q-res": "q_res" };
   Object.assign(mappings, {"analysis-mode":"analysis_mode","mode-search":"mode_search","spectrum-start-ghz":"spectrum_start_ghz","spectrum-stop-ghz":"spectrum_stop_ghz","spectrum-points":"spectrum_points","field-resolution":"field_resolution"});
@@ -28,7 +29,7 @@
     $("drop-zone").classList.toggle("busy",busy);
     $("geometry-mode").disabled=busy;
     $("solid-index").disabled=busy || !state.geometry;
-    $("cancel-button").hidden=!state.active;
+    $("cancel-button").hidden=!state.active||!state.jobId;
     $("add-port-button").disabled=state.selectedFace===null || busy || state.antennaPreview;
     $("review-caps-button").disabled=busy || !(state.sourceGeometry?.faces||state.geometry?.faces||[]).some(f=>f.artificial_cap);
     $("apply-ports-json").disabled=busy;
@@ -79,8 +80,32 @@
     const d=new Date(typeof value==="number"?value*1000:value);if(!Number.isFinite(d.getTime()))return "";
     return d.toLocaleString("ja-JP",{timeZone:"Asia/Tokyo",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})+" JST";
   }
-  function remainingEstimate(estimate){return Math.max(0,Number(estimate.remaining_s??estimate.total_s??0)-(estimate.receivedAt?(Date.now()-estimate.receivedAt)/1000:0));}
-  function estimateShort(estimate){const remaining=remainingEstimate(estimate),time=finishTime(estimate.estimated_finish_at);return (remaining>0?"残り約 "+duration(remaining):"見積り更新待ち")+(time?" · 完了目安 "+time:"");}
+  function estimateElapsed(estimate){return num(estimate?.receivedAt)?Math.max(0,(Date.now()-Number(estimate.receivedAt))/1000):0;}
+  function remainingEstimate(estimate){
+    const seconds=num(estimate?.remaining_s)?Number(estimate.remaining_s):num(estimate?.total_s)?Number(estimate.total_s)+Math.max(0,Number(estimate.queued_wait_s)||0):null;
+    return seconds===null||seconds<0?null:Math.max(0,seconds-estimateElapsed(estimate));
+  }
+  function estimateShort(estimate){
+    const remaining=remainingEstimate(estimate);
+    if(remaining===null)return "残り時間を推定中";
+    if(remaining<=0)return "見積り更新待ち";
+    const time=finishTime(estimate.estimated_finish_at)||finishTime(Date.now()/1000+remaining);
+    return "残り約 "+duration(remaining)+(time?" · 完了目安 "+time:"");
+  }
+  function liveEstimateDisplay(){
+    const e=state.jobEstimate,elapsed=estimateElapsed(e),stage=e?.stage||state.jobStage||(state.jobStatus==="queued"?"先行する計算を待機中":"解析を実行中");
+    const title=state.jobStatus==="submitting"?"解析の開始を確認中":state.jobStatus==="queued"?"順番待ちの解析":"実行中の解析";
+    const parts=[stage];
+    if(state.jobPollError)parts.push("進捗を再取得中。前回取得した見積りです。");
+    if(e){
+      if(num(e.lower_s)&&num(e.upper_s)&&Number(e.upper_s)>elapsed)parts.push("残りの目安 "+duration(Math.max(0,Number(e.lower_s)-elapsed))+"〜"+duration(Math.max(0,Number(e.upper_s)-elapsed)));
+      if(num(e.total_units)&&Number(e.total_units)>0)parts.push("処理単位 "+fmt(e.completed_units,0)+" / "+fmt(e.total_units,0));
+      if(Number(e.queued_wait_s)>elapsed)parts.push("順番待ち約 "+duration(Number(e.queued_wait_s)-elapsed));
+      parts.push(estimateBasis(e));
+    }
+    parts.push("実際の完了時刻を保証するものではありません。");
+    return {title,stage,time:estimateShort(e),detail:parts.join(" · ")};
+  }
   function estimateBasis(estimate){const confidence=({low:"概算",medium:"過去の実測を参考",high:"近い条件の実測を参考"})[estimate.confidence]||"概算";return confidence+(estimate.basis?" · "+(Array.isArray(estimate.basis)?estimate.basis.join(" / "):typeof estimate.basis==="string"?estimate.basis:JSON.stringify(estimate.basis)):"");}
   function memoryGiB(bytes){return num(bytes)&&Number(bytes)>=0?fmt(Number(bytes)/1073741824,2)+" GiB":"未取得";}
   function memoryLow(memory){return ["low_memory","insufficient_memory","budget_exceeded","system_reserve_low"].includes(memory.status)||memory.violated===true;}
@@ -156,7 +181,7 @@
     clearTimeout(state.estimateTimer);state.estimateGeneration++;
     if(refreshMemoryPlan)scheduleMemory();
     if(state.active)return;
-    state.estimate=null;setText("estimate-duration","条件を確認中…");setText("estimate-detail","形状・設定・過去の実測から推定します。");
+    state.estimate=null;setText("estimate-title","全解析の所要時間（概算）");setText("estimate-duration","条件を確認中…");setText("estimate-detail","形状・設定・過去の実測から推定します。");
     const generation=state.estimateGeneration;state.estimateTimer=setTimeout(()=>requestEstimate(generation),650);
   }
   async function requestEstimate(generation){
@@ -180,11 +205,12 @@
   function endTransient(){if(state.transient)state.transientSamples.set(state.transient.label,(Date.now()-state.transient.startedAt)/1000);state.transient=null;renderProgress();}
   function renderProgress(){
     const panel=$("work-progress");panel.hidden=!state.active&&!state.transient;
+    if(state.active){
+      const display=liveEstimateDisplay();
+      setText("estimate-title",display.title);setText("estimate-duration",display.time);setText("estimate-detail",display.detail);
+      setText("work-progress-title",display.stage);setText("work-progress-time",display.time);setText("work-progress-detail",display.detail);
+    }
     if(state.transient){const elapsed=(Date.now()-state.transient.startedAt)/1000;setText("work-progress-title",state.transient.label);setText("work-progress-time","経過 "+duration(elapsed));setText("work-progress-detail",(state.transient.calibrated?"この画面での前回処理を参考にした目安: ":"初回・未校正の参考幅: ")+duration(state.transient.low)+"〜"+duration(state.transient.high)+"。形状の複雑さにより長くなる場合があります。");return;}
-    if(!state.active)return;
-    const e=state.jobEstimate;setText("work-progress-title",e?.stage||"解析を実行中");setText("work-progress-time",e?estimateShort(e):"残り時間を推定中");
-    const parts=[];if(e){if(num(e.lower_s)&&num(e.upper_s)){const elapsed=(Date.now()-(e.receivedAt||Date.now()))/1000;parts.push("残りの目安 "+duration(Math.max(0,e.lower_s-elapsed))+"〜"+duration(Math.max(0,e.upper_s-elapsed)));}if(num(e.total_units)&&Number(e.total_units)>0)parts.push("処理単位 "+fmt(e.completed_units,0)+" / "+fmt(e.total_units,0));if(Number(e.queued_wait_s)>0)parts.push("順番待ち約 "+duration(e.queued_wait_s));parts.push(estimateBasis(e));}
-    setText("work-progress-detail",parts.join(" · ")+" · 実際の完了時刻を保証するものではありません。");
   }
   function portQLabel(value,power,status){
     if(num(value))return qfmt(value);
@@ -500,13 +526,14 @@
     try {
       protectThreadSelection();
       const config=collectConfig();
-      state.active=true;clearTimeout(state.estimateTimer);state.estimateGeneration++;setText("estimate-title","実行中の解析");setText("estimate-duration","進行状況に残り時間を表示");setText("estimate-detail","所要時間は最新の処理状況から更新されます。");syncButtons();$("notice").hidden=true;
+      state.active=true;state.jobId=null;state.jobStatus="submitting";state.jobStage="計算の開始を確認しています";state.jobEstimate=null;state.jobPollError=false;state.estimate=null;
+      clearTimeout(state.poll);state.generation++;clearTimeout(state.estimateTimer);state.estimateGeneration++;renderProgress();syncButtons();$("notice").hidden=true;
       const job=await api("/api/jobs",jsonPost(config));
       clearTimeout(state.poll);state.generation++;state.jobId=job.id;
       state.startedAt=job.created_at?job.created_at*1000:Date.now();
       resetResults();switchTab("log");renderJob(job);refreshJobs();
       if(["queued","running"].includes(job.status)) pollJob(state.generation);
-    } catch(e) {state.active=false;syncButtons();scheduleEstimate();notice(e.message,true);}
+    } catch(e) {state.active=false;renderProgress();syncButtons();scheduleEstimate();notice(e.message,true);}
   }
   function renderJob(job) {
     protectThreadSelection();
@@ -514,7 +541,10 @@
     state.jobStatus=job.status;const jobMemory=job.memory||job.result?.memory_policy;
     state.jobMemory=jobMemory&&typeof jobMemory==="object"?jobMemory:null;
     state.jobMemoryAt=state.jobMemory?.sampled_at||job.finished_at||null;state.jobMemoryConfig=job.config||job.result?.config||null;renderMemory();
-    state.jobEstimate=job.estimate?{...job.estimate,receivedAt:Date.now()}:null;for(const item of state.historyEstimates)if(item.id===job.id)item.estimate=state.jobEstimate;renderProgress();
+    state.jobStage=job.stage||statuses[job.status]||job.status;state.jobPollError=false;
+    state.jobEstimate=state.active&&job.estimate?{...job.estimate,receivedAt:Date.now()}:null;
+    if(state.active){clearTimeout(state.estimateTimer);state.estimateGeneration++;state.estimate=null;}
+    for(const item of state.historyEstimates)if(item.id===job.id)item.estimate=state.jobEstimate;renderProgress();
     if(job.created_at)state.startedAt=job.created_at*1000;
     setStatus(job.status);setText("log-stage",job.stage || statuses[job.status] || job.status);
     const log=$("job-log"),nearEnd=log.scrollHeight-log.clientHeight-log.scrollTop<60;
@@ -526,18 +556,19 @@
     if(job.status==="completed"&&job.result)renderResult(job.result);
     if(job.status==="failed") {notice(job.error || "計算に失敗しました。ログを確認してください。",true);setText("results-subtitle","計算に失敗しました。条件とログを確認してください。");}
     if(job.status==="cancelled")setText("results-subtitle","計算は停止されました。条件を調整して再実行できます。");
-    syncButtons();
+    syncButtons();if(!state.active)scheduleEstimate();
   }
   async function pollJob(generation) {
     if(generation!==state.generation)return;
     try {
-      const job=await api("/api/jobs/"+encodeURIComponent(state.jobId));
+      const job=await api("/api/jobs/"+encodeURIComponent(state.jobId),{timeoutMs:12000});
       if(generation!==state.generation)return;
       const wasActive=state.active;renderJob(job);
       if(state.active)state.poll=setTimeout(()=>pollJob(generation),1800);
-      else {refreshJobs();scheduleEstimate();if(job.status==="completed"&&wasActive){switchTab("modes");notice("解析が完了しました。モード一覧と損失・participation を確認できます。");}}
+      else {refreshJobs();if(job.status==="completed"&&wasActive){switchTab("modes");notice("解析が完了しました。モード一覧と損失・participation を確認できます。");}}
     } catch(e) {
       if(generation!==state.generation)return;
+      state.jobPollError=true;renderProgress();
       notice("進行状況を取得できませんでした。5 秒後に再接続します。 "+e.message,true);
       state.poll=setTimeout(()=>pollJob(generation),5000);
     }
@@ -550,6 +581,7 @@
     try {
       const job=await api("/api/jobs/"+encodeURIComponent(id));
       resetResults();restoreConfig(job.result?.config||job.config,job.result?.geometry);
+      renderJob(job);
       const config=job.result?.config||job.config;
       if(config?.geometry_id) {
         state.loading=true;startTransient("保存した形状の復元",30,180);syncButtons();
@@ -557,9 +589,9 @@
         catch(e){notice("結果は読み込めましたが、形状プレビューを復元できませんでした。 "+e.message,true);}
         finally{state.loading=false;endTransient();}
       }
-      renderJob(job);switchTab(job.status==="completed"?"modes":"log");if(!state.active)scheduleEstimate();
+      renderProgress();switchTab(job.status==="completed"?"modes":"log");
       if(state.active)pollJob(state.generation);
-    } catch(e){notice(e.message,true);syncButtons();}
+    } catch(e){if(state.active&&state.jobId){state.jobPollError=true;renderProgress();state.poll=setTimeout(()=>pollJob(state.generation),5000);}notice(e.message,true);syncButtons();}
   }
   function modeClassLabel(mode) {
     return ({cavity_like:"空洞主体",feed_dominated:"同軸主体",strongly_damped:"強い減衰"})[mode.mode_class]||"未分類";
@@ -929,7 +961,7 @@
   $("threads").addEventListener("input",protectThreadSelection);
   $("threads").addEventListener("change",protectThreadSelection);
   $("run-button").addEventListener("click",startJob);
-  $("cancel-button").addEventListener("click",async()=>{if(!state.active)return;$("cancel-button").disabled=true;try{renderJob(await api("/api/jobs/"+encodeURIComponent(state.jobId)+"/cancel",{method:"POST"}));clearTimeout(state.poll);state.generation++;refreshJobs();if(!state.active)scheduleEstimate();}catch(e){notice(e.message,true);}finally{$("cancel-button").disabled=false;}});
+  $("cancel-button").addEventListener("click",async()=>{if(!state.active||!state.jobId)return;$("cancel-button").disabled=true;try{renderJob(await api("/api/jobs/"+encodeURIComponent(state.jobId)+"/cancel",{method:"POST"}));clearTimeout(state.poll);state.generation++;refreshJobs();}catch(e){notice(e.message,true);}finally{$("cancel-button").disabled=false;}});
   $("ports-json").addEventListener("input",()=>{state.portsJsonDirty=true;setText("ports-json-state","未適用 · 計算には上のカードを使用");});
   $("apply-ports-json").addEventListener("click",()=>{try{state.ports=validatePorts(JSON.parse($("ports-json").value)).map(manualPort);renderPorts();notice("JSON の手動境界設定をカードに反映しました。自動ポートは別に生成されます。");}catch(e){notice("JSON を適用できません: "+e.message,true);}});
   $("auto-openings").addEventListener("change",()=>setAutomaticOpenings($("auto-openings").checked));

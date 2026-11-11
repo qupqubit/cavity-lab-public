@@ -28,6 +28,12 @@ def universal_binary():
                        0x01000007, 0, 80, 32, 0) + thin_binary("arm64") + thin_binary("x86_64")
 
 
+def icon_container():
+    # Structural fixture only; the release icon is rendered independently.
+    record = b"ic07" + struct.pack(">I", 12) + b"icon"
+    return b"icns" + struct.pack(">I", 8 + len(record)) + record
+
+
 @pytest.fixture
 def source(tmp_path):
     root = tmp_path / "source with spaces"
@@ -36,6 +42,7 @@ def source(tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(relative + "\n", encoding="utf-8")
     (root / "cavity_fem/__init__.py").write_text('__version__ = "0.1.7"\n', encoding="utf-8")
+    (root / "macos/CavityFEM.icns").write_bytes(icon_container())
     return root
 
 
@@ -83,17 +90,20 @@ def native_tools(monkeypatch):
 
 
 def test_bundle_layout_digest_permissions_and_archive(source, runtimes, provenance, native_tools, tmp_path):
-    output = tmp_path / "公開 outputs/Cavity Lab.app"
-    archive = tmp_path / "公開 outputs/Cavity Lab.zip"
+    output = tmp_path / "公開 outputs/CavityFEM.app"
+    archive = tmp_path / "公開 outputs/CavityFEM-macOS.zip"
     report = builder.build_app(source, runtimes["arm64"], runtimes["x86_64"], output, provenance, archive=archive)
     resources = output / "Contents/Resources"
     metadata = plistlib.loads((output / "Contents/Info.plist").read_bytes())
     assert metadata["CFBundleIdentifier"] == "jp.qupqubit.cavitylab"
-    assert metadata["CFBundleDisplayName"] == "Cavity Lab"
+    assert metadata["CFBundleDisplayName"] == metadata["CFBundleName"] == "CavityFEM"
+    assert metadata["CFBundleExecutable"] == metadata["CFBundleIconFile"] == "CavityFEM"
     assert metadata["LSMinimumSystemVersion"] == "12.0"
     assert metadata["CFBundleShortVersionString"] == "0.1.7"
     assert metadata["NSAppTransportSecurity"] == {"NSAllowsLocalNetworking": True}
-    assert builder.macho_architectures(output / "Contents/MacOS/CavityLab") == set(builder.ARCHITECTURES)
+    assert builder.macho_architectures(output / "Contents/MacOS/CavityFEM") == set(builder.ARCHITECTURES)
+    assert (resources / "CavityFEM.icns").read_bytes() == icon_container()
+    assert (resources / "app/macos/icon-NOTICE.md").is_file()
     for architecture in builder.ARCHITECTURES:
         copied = resources / "python" / architecture
         assert (copied / "bin/python3").is_symlink()
@@ -104,6 +114,8 @@ def test_bundle_layout_digest_permissions_and_archive(source, runtimes, provenan
     assert manifest["runtimes"] == provenance
     assert manifest["fem_libraries_bundled"] is False
     assert manifest["signing"] == "ad_hoc_not_notarized"
+    assert manifest["icon"] == {"file": "CavityFEM.icns", "source": "macos/CavityFEM.icns",
+                                "sha256": hashlib.sha256(icon_container()).hexdigest()}
     entries = [(p.relative_to(resources / "app").as_posix(), hashlib.sha256(p.read_bytes()).hexdigest())
                for p in sorted((resources / "app").rglob("*")) if p.is_file()]
     digest = hashlib.sha256(json.dumps(entries, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
@@ -204,7 +216,7 @@ def test_version_reader_does_not_execute_package(source):
 
 
 def test_existing_output_is_never_replaced(source, runtimes, provenance, native_tools, tmp_path):
-    output = tmp_path / "Cavity Lab.app"
+    output = tmp_path / "CavityFEM.app"
     output.mkdir()
     sentinel = output / "keep.txt"
     sentinel.write_text("keep", encoding="utf-8")
@@ -217,7 +229,7 @@ def test_build_failure_never_publishes_partial_bundle(source, runtimes, provenan
     def failed_compile(*args):
         raise RuntimeError("compiler failure")
     monkeypatch.setattr(builder, "compile_launcher", failed_compile)
-    output = tmp_path / "Cavity Lab.app"
+    output = tmp_path / "CavityFEM.app"
     with pytest.raises(RuntimeError, match="compiler failure"):
         builder.build_app(source, runtimes["arm64"], runtimes["x86_64"], output, provenance)
     assert not output.exists()
@@ -231,7 +243,7 @@ def test_output_cannot_recurse_into_input_notices(source, runtimes, provenance, 
     with pytest.raises(ValueError, match="outside all input"):
         builder.build_app(source, runtimes["arm64"], runtimes["x86_64"], notices / "nested.app",
                           provenance, runtime_notices=notices)
-    output = tmp_path / "Cavity Lab.app"
+    output = tmp_path / "CavityFEM.app"
     with pytest.raises(ValueError, match="Archive must be outside"):
         builder.build_app(source, runtimes["arm64"], runtimes["x86_64"], output,
                           provenance, archive=output / "recursive.zip")
@@ -247,7 +259,7 @@ def test_compile_targets_and_frameworks(monkeypatch, tmp_path):
             Path(command[-1]).write_bytes(universal_binary())
         return SimpleNamespace(stdout="")
     monkeypatch.setattr(builder, "run", run)
-    output = tmp_path / "CavityLab"
+    output = tmp_path / "CavityFEM"
     builder.compile_launcher(tmp_path / "CavityLab.swift", output, tmp_path)
     swift_calls = [command for command in commands if "swiftc" in command]
     assert len(swift_calls) == 2
@@ -269,3 +281,44 @@ def test_runtime_notices_can_be_supplied_separately(source, runtimes, provenance
     output = tmp_path / "notices.app"
     builder.build_app(source, runtimes["arm64"], runtimes["x86_64"], output, provenance, runtime_notices=notices)
     assert (output / "Contents/Resources/PythonNotices/CPython-LICENSE.txt").is_file()
+
+
+def test_missing_icon_prevents_bundle_publication(source, runtimes, provenance, native_tools, tmp_path):
+    (source / "macos/CavityFEM.icns").unlink()
+    output = tmp_path / "CavityFEM.app"
+    with pytest.raises(ValueError, match="CavityFEM.icns"):
+        builder.build_app(source, runtimes["arm64"], runtimes["x86_64"], output, provenance)
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("content", [b"not an icon", b"icns" + struct.pack(">I", 100),
+                                    b"icns" + struct.pack(">I", 16) + b"ic07" + struct.pack(">I", 20)])
+def test_invalid_icon_container_is_rejected(tmp_path, content):
+    icon = tmp_path / "CavityFEM.icns"
+    icon.write_bytes(content)
+    with pytest.raises(ValueError, match="CavityFEM.icns"):
+        builder.validate_icon(icon)
+
+
+def test_icon_symlink_is_rejected(tmp_path):
+    original = tmp_path / "original.icns"
+    original.write_bytes(icon_container())
+    link = tmp_path / "CavityFEM.icns"
+    link.symlink_to(original.name)
+    with pytest.raises(ValueError, match="regular"):
+        builder.validate_icon(link)
+
+
+def test_changed_bundled_icon_fails_provenance_check(source, runtimes, provenance, native_tools, tmp_path):
+    output = tmp_path / "CavityFEM.app"
+    builder.build_app(source, runtimes["arm64"], runtimes["x86_64"], output, provenance)
+    (output / "Contents/Resources/CavityFEM.icns").write_bytes(icon_container()[:-1] + b"X")
+    with pytest.raises(ValueError, match="provenance"):
+        builder.validate_bundle(output)
+
+
+def test_source_plist_template_keeps_identity_and_uses_new_name():
+    metadata = plistlib.loads((ROOT / "macos/Info.plist").read_bytes())
+    assert metadata["CFBundleIdentifier"] == "jp.qupqubit.cavitylab"
+    assert all(metadata[key] == "CavityFEM" for key in
+               ("CFBundleName", "CFBundleDisplayName", "CFBundleExecutable", "CFBundleIconFile"))
